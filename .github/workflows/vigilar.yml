@@ -1,0 +1,45 @@
+name: vigilar
+
+on:
+  schedule:
+    - cron: "*/30 13-23 * * *"  # ventana de partidos (kickoffs 15-02 UTC, finales hasta ~04)
+    - cron: "*/30 0-4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vigilar
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen
+      - name: Actualizar, ajustar y vigilar
+        run: |
+          uv run mundial actualizar
+          uv run mundial ratings
+          uv run mundial vigilar
+        env:
+          BSD_TOKEN: ${{ secrets.BSD_TOKEN }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Commit estado y predicciones
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/predicciones data/notificaciones.json
+          if git diff --cached --quiet; then
+            echo "Sin estado nuevo"
+          else
+            git commit -m "vigilar: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase origin main
+            git push
+          fi

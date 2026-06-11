@@ -62,9 +62,11 @@ def evaluar(conexion: sqlite3.Connection) -> dict:
             agregados[nombre].append(metricas[nombre])
         partidos.append(
             {
+                "partido_id": fila["partido_id"],
                 "partido": f"{fila['equipo_local']} {fila['goles_local']}-"
                            f"{fila['goles_visitante']} {fila['equipo_visitante']}",
                 "fecha": fila["fecha_utc"],
+                "p_resultado": fila[f"p_{ORDEN[resultado]}"],
                 "resultado": ORDEN[resultado],
                 "p_local": fila["p_local"],
                 "marcador_predicho": fila["marcador"],

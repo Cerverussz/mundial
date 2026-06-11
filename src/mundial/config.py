@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 RAIZ = Path(__file__).resolve().parents[2]
 DIR_SNAPSHOTS = RAIZ / "data" / "snapshots"
 DIR_LOCAL = RAIZ / "data" / "local"
+DIR_PREDICCIONES = RAIZ / "data" / "predicciones"
 
 load_dotenv(RAIZ / ".env")
 

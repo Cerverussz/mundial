@@ -100,9 +100,7 @@ def sincronizar(
     if not partidos and calendario:
         partidos = [p for c in calendario if (p := _desde_fifa(c))]
 
-    estadio_por_llave = {
-        (c["fecha_utc"], c["local_tla"]): (c["estadio"], c["id_fifa"]) for c in calendario
-    }
+    calendario_por_llave = {(c["fecha_utc"], c["local_tla"]): c for c in calendario}
     tlas: dict[str, str] = {}
     for p in partidos:
         tla_visitante = p.pop("visitante_tla", None)
@@ -111,9 +109,17 @@ def sincronizar(
             tlas[p["local"]] = tla_local
         if tla_visitante:
             tlas[p["visitante"]] = tla_visitante
-        p["estadio"], p["id_fifa"] = estadio_por_llave.get(
-            (p["fecha_utc"], tla_local), (None, None)
-        )
+        c = calendario_por_llave.get((p["fecha_utc"], tla_local))
+        p["estadio"] = c["estadio"] if c else None
+        p["id_fifa"] = c["id_fifa"] if c else None
+        # football-data (tier gratis, retrasado) puede marcar FINISHED sin marcador;
+        # el calendario FIFA sí lo trae — la cascada aplica por campo, no solo por fuente.
+        if (
+            c and p["goles_local"] is None
+            and c.get("goles_local") is not None and c.get("goles_visitante") is not None
+        ):
+            p["goles_local"], p["goles_visitante"] = c["goles_local"], c["goles_visitante"]
+            p["estado"] = "FINISHED"
     conexion.executemany(
         """INSERT OR REPLACE INTO partidos
            (id, fecha_utc, local, visitante, fase, grupo, jornada, estadio, estado,
@@ -134,9 +140,13 @@ def sincronizar(
     )
 
     from mundial.ingesta import cargar_cuotas
+    from mundial.modelo import prediccion
 
     n_cuotas = cargar_cuotas.cargar_nuevos(conexion)
     mensajes.append(f"cuotas nuevas desde snapshots: {n_cuotas}")
+    n_predicciones = prediccion.cargar_exportadas(conexion)
+    if n_predicciones:
+        mensajes.append(f"predicciones importadas del repo: {n_predicciones}")
 
     historicos = {
         f["local"] for f in conexion.execute("SELECT DISTINCT local FROM resultados_historicos")

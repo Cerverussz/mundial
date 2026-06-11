@@ -147,12 +147,46 @@ def _commit_datos() -> str | None:
         return None
 
 
+COLUMNAS_PREDICCION = (
+    "partido_id", "creado_en", "commit_datos", "version_modelo", "marcador",
+    "p_local", "p_empate", "p_visitante",
+    "p_local_modelo", "p_empate_modelo", "p_visitante_modelo",
+    "p_local_mercado", "p_empate_mercado", "p_visitante_mercado",
+    "matriz_json", "confianza", "razones_confianza", "factores_json", "valor_flags",
+)
+
+
+def cargar_exportadas(conexion: sqlite3.Connection, directorio=None) -> int:
+    """Importa predicciones exportadas al repo (JSONL); idempotente por (partido, momento)."""
+    from mundial.config import DIR_PREDICCIONES
+
+    directorio = directorio or DIR_PREDICCIONES
+    if not directorio.exists():
+        return 0
+    columnas = ", ".join(COLUMNAS_PREDICCION)
+    marcadores = ", ".join(f":{c}" for c in COLUMNAS_PREDICCION)
+    insertadas = 0
+    for ruta in sorted(directorio.glob("*.jsonl")):
+        with open(ruta, encoding="utf-8") as archivo:
+            for linea in archivo:
+                if not linea.strip():
+                    continue
+                cursor = conexion.execute(
+                    f"INSERT OR IGNORE INTO predicciones ({columnas}) VALUES ({marcadores})",
+                    json.loads(linea),
+                )
+                insertadas += cursor.rowcount
+    conexion.commit()
+    return insertadas
+
+
 def predecir(
     conexion: sqlite3.Connection,
     partido_id: int,
     ahora: datetime | None = None,
     peso_modelo: float = PESO_MODELO,
     cliente_bsd=None,
+    dir_exportacion=None,
 ) -> Prediccion:
     ahora = ahora or datetime.now(timezone.utc)
     referencia = ahora.date()
@@ -323,24 +357,31 @@ def predecir(
         n_casas=n_casas,
         matriz=matriz_final,
     )
+    fila = dict(
+        zip(
+            COLUMNAS_PREDICCION,
+            (
+                partido_id, resultado.creado_en, _commit_datos(), ajuste.version,
+                f"{marcador[0]}-{marcador[1]}",
+                p_final["local"], p_final["empate"], p_final["visitante"],
+                p_modelo["local"], p_modelo["empate"], p_modelo["visitante"],
+                p_mercado.get("local"), p_mercado.get("empate"), p_mercado.get("visitante"),
+                json.dumps(matriz_final.tolist()), nivel,
+                json.dumps(razones, ensure_ascii=False),
+                json.dumps(factores, ensure_ascii=False),
+                json.dumps(valor_flags, ensure_ascii=False),
+            ),
+        )
+    )
+    columnas = ", ".join(COLUMNAS_PREDICCION)
+    marcadores_sql = ", ".join(f":{c}" for c in COLUMNAS_PREDICCION)
     conexion.execute(
-        """INSERT INTO predicciones
-           (partido_id, creado_en, commit_datos, version_modelo, marcador,
-            p_local, p_empate, p_visitante,
-            p_local_modelo, p_empate_modelo, p_visitante_modelo,
-            p_local_mercado, p_empate_mercado, p_visitante_mercado,
-            matriz_json, confianza, razones_confianza, factores_json, valor_flags)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (
-            partido_id, resultado.creado_en, _commit_datos(), ajuste.version,
-            f"{marcador[0]}-{marcador[1]}",
-            p_final["local"], p_final["empate"], p_final["visitante"],
-            p_modelo["local"], p_modelo["empate"], p_modelo["visitante"],
-            p_mercado.get("local"), p_mercado.get("empate"), p_mercado.get("visitante"),
-            json.dumps(matriz_final.tolist()), nivel, json.dumps(razones, ensure_ascii=False),
-            json.dumps(factores, ensure_ascii=False),
-            json.dumps(valor_flags, ensure_ascii=False),
-        ),
+        f"INSERT OR IGNORE INTO predicciones ({columnas}) VALUES ({marcadores_sql})", fila
     )
     conexion.commit()
+    if dir_exportacion is not None:
+        dir_exportacion.mkdir(parents=True, exist_ok=True)
+        ruta = dir_exportacion / f"{resultado.creado_en[:10]}.jsonl"
+        with open(ruta, "a", encoding="utf-8") as archivo:
+            archivo.write(json.dumps(fila, ensure_ascii=False) + "\n")
     return resultado

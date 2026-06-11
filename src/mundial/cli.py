@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 import typer
 from rich.console import Console
 
-from mundial.config import DIR_SNAPSHOTS, clave
+from mundial.config import DIR_PREDICCIONES, DIR_SNAPSHOTS, clave
 from mundial.ingesta import snapshots
 from mundial.ingesta.bsd import ClienteBsd
 from mundial.ingesta.odds_api import ClienteOddsApi
@@ -151,7 +151,10 @@ def predecir(
 
     conexion = _conexion_lista()
     partido_id = _resolver_partido(conexion, partido)
-    resultado = prediccion.predecir(conexion, partido_id, cliente_bsd=_cliente_bsd_opcional())
+    resultado = prediccion.predecir(
+        conexion, partido_id, cliente_bsd=_cliente_bsd_opcional(),
+        dir_exportacion=DIR_PREDICCIONES,
+    )
     _imprimir_prediccion(resultado)
 
 
@@ -169,7 +172,11 @@ def hoy() -> None:
         return
     cliente = _cliente_bsd_opcional()
     for fila in filas:
-        _imprimir_prediccion(prediccion.predecir(conexion, fila["id"], cliente_bsd=cliente))
+        _imprimir_prediccion(
+            prediccion.predecir(
+                conexion, fila["id"], cliente_bsd=cliente, dir_exportacion=DIR_PREDICCIONES
+            )
+        )
 
 
 @app.command()
@@ -186,7 +193,26 @@ def jornada(numero: int = typer.Argument(..., help="Jornada de fase de grupos (1
         return
     cliente = _cliente_bsd_opcional()
     for fila in filas:
-        _imprimir_prediccion(prediccion.predecir(conexion, fila["id"], cliente_bsd=cliente))
+        _imprimir_prediccion(
+            prediccion.predecir(
+                conexion, fila["id"], cliente_bsd=cliente, dir_exportacion=DIR_PREDICCIONES
+            )
+        )
+
+
+@app.command()
+def vigilar() -> None:
+    """Envía análisis pre-partido y resultados post-partido pendientes a Telegram."""
+    from mundial.notificaciones import vigilar as modulo
+    from mundial.notificaciones.telegram import ClienteTelegram
+
+    cliente = ClienteTelegram(clave("TELEGRAM_BOT_TOKEN"))
+    registro = modulo.vigilar(
+        _conexion_lista(), cliente, clave("TELEGRAM_CHAT_ID"),
+        cliente_bsd=_cliente_bsd_opcional(), dir_exportacion=DIR_PREDICCIONES,
+    )
+    for linea in registro:
+        consola.print(linea)
 
 
 @app.command()

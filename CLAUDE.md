@@ -57,6 +57,10 @@ uv run pytest              # 68 tests, all offline
 
 ## Telegram notifications
 
+**Per-match watcher (`mundial vigilar` + `vigilar.yml`, cron */30 during 13:00-04:30 UTC):** sends the analysis ~2.5 h before each kickoff and the result right after each match finishes (final score, predicted score, ✅/❌ 1X2 with the probability given to the actual outcome, ✅/❌ exact score, cumulative hit rates + RPS vs market verdict). Idempotence across stateless CI runners via `data/notificaciones.json` (committed). Predictions persist across runs as JSONL in `data/predicciones/` (exported by predict commands and vigilar, imported by `actualizar` via INSERT OR IGNORE on unique (partido_id, creado_en)).
+
+**Hard-won fact (2026-06-11):** football-data.org free tier can report `FINISHED` with NULL scores for hours; `actualizar` merges scores per-field from the FIFA calendar (cascade applies per-field, not per-source). Also: late-night kickoffs (01-02 UT C) belong to the next UTC date — never filter "today's matches" by `date(fecha_utc)`; the digest window runs [00:00, next-day 05:00) and per-match timing lives in vigilar.
+
 `notificaciones/telegram.py` + `.github/workflows/telegram.yml` (cron 13:00 UTC pre-match digest, 04:30 UTC results digest). The CI job rebuilds the DB (actualizar → ratings) and sends fresh predictions — it is a *notification* layer; audit-grade prediction history accumulates where the CLI runs persistently. Secrets needed: `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` (via `mundial telegram --configurar`), plus `FOOTBALL_DATA_KEY`. Messages are HTML, chunked at 4,000 chars; a match whose prediction fails degrades to one line, never kills the digest.
 
 ## Engine facts (F2-F5, 2026-06-11)

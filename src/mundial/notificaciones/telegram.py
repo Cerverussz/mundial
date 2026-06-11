@@ -98,10 +98,13 @@ def armar_resumen(
     ayer = (date.fromisoformat(fecha) - timedelta(days=1)).isoformat()
     secciones: list[str] = []
 
+    # La "jornada" en horario de las Américas se extiende hasta la madrugada UTC siguiente.
+    manana = (date.fromisoformat(fecha) + timedelta(days=1)).isoformat()
     partidos_hoy = conexion.execute(
         """SELECT id, fecha_utc, estadio FROM partidos
-           WHERE date(fecha_utc) = ? AND goles_local IS NULL ORDER BY fecha_utc""",
-        (fecha,),
+           WHERE fecha_utc >= ? AND fecha_utc < ? AND goles_local IS NULL
+           ORDER BY fecha_utc""",
+        (f"{fecha}T00:00", f"{manana}T05:00"),
     ).fetchall()
     if partidos_hoy:
         bloques = [f"🏆 <b>Pronósticos del {fecha}</b>"]

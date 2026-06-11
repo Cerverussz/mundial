@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS predicciones(
   factores_json TEXT,
   valor_flags TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS predicciones_unicas
+  ON predicciones(partido_id, creado_en);
 """
 
 

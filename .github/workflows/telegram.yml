@@ -2,8 +2,8 @@ name: telegram
 
 on:
   schedule:
-    - cron: "0 13 * * *"   # resumen pre-partidos (los primeros kickoffs son ~15-16 UTC)
-    - cron: "30 4 * * *"   # resultados de la jornada anterior (los últimos terminan ~03 UTC)
+    - cron: "0 13 * * *"   # resumen diario de la jornada (los resultados los envía vigilar.yml
+                           # partido a partido, así que el cron de las 04:30 se eliminó)
   workflow_dispatch:
 
 permissions:

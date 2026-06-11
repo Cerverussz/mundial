@@ -56,6 +56,26 @@ def test_cascada_degrada_a_fifa(tmp_path):
     assert any("ADVERTENCIA" in m for m in mensajes)
 
 
+def test_completa_marcador_desde_fifa(tmp_path):
+    """football-data puede traer FINISHED sin marcador; el calendario FIFA lo completa."""
+
+    class FifaConMarcador(FifaFalso):
+        def calendario(self):
+            calendario = super().calendario()
+            for c in calendario:
+                if c["id_fifa"] == "400021443":
+                    c["goles_local"], c["goles_visitante"] = 2, 0
+            return calendario
+
+    conexion = preparar_bd(tmp_path)
+    actualizar.sincronizar(
+        conexion, cliente_fd=FdFalso(), cliente_fifa=FifaConMarcador(), cargar_historico=False
+    )
+    fila = conexion.execute("SELECT * FROM partidos WHERE id=537327").fetchone()
+    assert fila["goles_local"] == 2 and fila["goles_visitante"] == 0
+    assert fila["estado"] == "FINISHED"
+
+
 def test_canonico_aplica_mapeo():
     assert actualizar.canonico("Korea Republic") == "South Korea"
     assert actualizar.canonico("Mexico") == "Mexico"

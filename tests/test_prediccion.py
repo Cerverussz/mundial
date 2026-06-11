@@ -98,3 +98,17 @@ def test_predecir_integra_todo(tmp_path):
 
     segundo = prediccion.predecir(conexion, 537327)
     assert segundo.cambios is not None  # ahora hay una anterior para comparar
+
+
+def test_exportar_e_importar_predicciones(tmp_path):
+    conexion = preparar_bd_completa(tmp_path)
+    directorio = tmp_path / "exportadas"
+    prediccion.predecir(conexion, 537327, dir_exportacion=directorio)
+    assert len(list(directorio.glob("*.jsonl"))) == 1
+
+    otra = bd.conectar(tmp_path / "otra.db")
+    esquema.crear(otra)
+    assert prediccion.cargar_exportadas(otra, directorio) == 1
+    assert prediccion.cargar_exportadas(otra, directorio) == 0  # idempotente
+    fila = otra.execute("SELECT * FROM predicciones").fetchone()
+    assert fila["partido_id"] == 537327 and fila["confianza"] in ("Alta", "Media", "Baja")
