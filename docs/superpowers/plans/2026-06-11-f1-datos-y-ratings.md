@@ -20,8 +20,8 @@
 
 **Files:** Modify `pyproject.toml` (add numpy, scipy); Create `src/mundial/persistencia/__init__.py` (empty), `src/mundial/persistencia/bd.py`, `src/mundial/persistencia/esquema.py`; Test `tests/test_persistencia.py`.
 
-- [ ] Step 1: add `"numpy>=2.0", "scipy>=1.13",` to `[project] dependencies`; run `uv sync`.
-- [ ] Step 2: failing tests:
+- [x] Step 1: add `"numpy>=2.0", "scipy>=1.13",` to `[project] dependencies`; run `uv sync`.
+- [x] Step 2: failing tests:
 
 ```python
 from mundial.persistencia import bd, esquema
@@ -43,8 +43,8 @@ def test_esquema_idempotente(tmp_path):
             "ratings", "modelo_meta"} <= tablas
 ```
 
-- [ ] Step 3: run `uv run pytest tests/test_persistencia.py -v` → FAIL (module missing).
-- [ ] Step 4: implement `bd.py`:
+- [x] Step 3: run `uv run pytest tests/test_persistencia.py -v` → FAIL (module missing).
+- [x] Step 4: implement `bd.py`:
 
 ```python
 """Conexión SQLite local (caché derivado, nunca commiteado)."""
@@ -127,7 +127,7 @@ def crear(conexion: sqlite3.Connection) -> None:
     conexion.commit()
 ```
 
-- [ ] Step 5: tests pass → commit `feat: SQLite schema and connection module`.
+- [x] Step 5: tests pass → commit `feat: SQLite schema and connection module`.
 
 ---
 
@@ -135,7 +135,7 @@ def crear(conexion: sqlite3.Connection) -> None:
 
 **Files:** Create `data/static/estadios.csv`, `src/mundial/ingesta/estaticos.py`; Test `tests/test_estaticos.py`.
 
-- [ ] Step 1: write `data/static/estadios.csv` keyed by exact FIFA names (altitudes approximate, good enough for the altitude adjustment which only materially matters for Mexico City/Guadalajara/Monterrey):
+- [x] Step 1: write `data/static/estadios.csv` keyed by exact FIFA names (altitudes approximate, good enough for the altitude adjustment which only materially matters for Mexico City/Guadalajara/Monterrey):
 
 ```csv
 nombre,ciudad,pais,altitud_m,lat,lon,tz
@@ -157,7 +157,7 @@ Toronto Stadium,Toronto,Canada,76,43.6332,-79.4186,America/Toronto
 BC Place Vancouver,Vancouver,Canada,5,49.2767,-123.1119,America/Vancouver
 ```
 
-- [ ] Step 2: failing test:
+- [x] Step 2: failing test:
 
 ```python
 from mundial.ingesta import estaticos
@@ -175,7 +175,7 @@ def test_cargar_estadios(tmp_path):
     assert azteca["tz"] == "America/Mexico_City"
 ```
 
-- [ ] Step 3: implement `estaticos.py`:
+- [x] Step 3: implement `estaticos.py`:
 
 ```python
 """Carga de datos estáticos (estadios del Mundial 2026) a la base local."""
@@ -200,7 +200,7 @@ def cargar_estadios(conexion: sqlite3.Connection) -> int:
     return len(filas)
 ```
 
-- [ ] Step 4: test passes → commit `feat: WC2026 stadium static data (altitude, coords, tz)`.
+- [x] Step 4: test passes → commit `feat: WC2026 stadium static data (altitude, coords, tz)`.
 
 ---
 
@@ -208,7 +208,7 @@ def cargar_estadios(conexion: sqlite3.Connection) -> int:
 
 **Files:** Create `src/mundial/ingesta/martj42.py`; Test `tests/test_martj42.py` (small inline CSV).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 import httpx
@@ -257,7 +257,7 @@ def test_descargar_baja_si_no_existe(tmp_path):
     assert "Argentina" in ruta.read_text()
 ```
 
-- [ ] Step 2: run → FAIL. Step 3: implement:
+- [x] Step 2: run → FAIL. Step 3: implement:
 
 ```python
 """Histórico de partidos internacionales 1872→hoy (martj42, CC0)."""
@@ -307,7 +307,7 @@ def cargar(conexion: sqlite3.Connection, ruta: Path) -> int:
     return len(filas)
 ```
 
-- [ ] Step 4: tests pass → commit `feat: martj42 historical results downloader and loader`.
+- [x] Step 4: tests pass → commit `feat: martj42 historical results downloader and loader`.
 
 ---
 
@@ -315,8 +315,8 @@ def cargar(conexion: sqlite3.Connection, ruta: Path) -> int:
 
 **Files:** Create `src/mundial/ingesta/football_data.py`, `src/mundial/ingesta/fifa.py`; copy probes `/tmp/fd_matches.json` → `tests/fixtures/fd_matches.json` and trimmed `/tmp/fifa_cal.json` (first 6 Results) → `tests/fixtures/fifa_calendar.json`; Test `tests/test_clientes_fixtures.py`.
 
-- [ ] Step 1: save fixtures (trim FIFA to 6 matches with `python3 -c "..."`).
-- [ ] Step 2: failing tests:
+- [x] Step 1: save fixtures (trim FIFA to 6 matches with `python3 -c "..."`).
+- [x] Step 2: failing tests:
 
 ```python
 import json
@@ -357,7 +357,7 @@ def test_fifa_calendario_simplificado():
     assert primero["id_fifa"] == "400021443"
 ```
 
-- [ ] Step 3: implement `football_data.py`:
+- [x] Step 3: implement `football_data.py`:
 
 ```python
 """Cliente de football-data.org v4 — backbone de fixtures/resultados (10 req/min)."""
@@ -440,7 +440,7 @@ class ClienteFifa:
         return simplificados
 ```
 
-- [ ] Step 4: tests pass → commit `feat: football-data and FIFA calendar clients`.
+- [x] Step 4: tests pass → commit `feat: football-data and FIFA calendar clients`.
 
 ---
 
@@ -448,7 +448,7 @@ class ClienteFifa:
 
 **Files:** Create `data/static/mapeo_nombres.csv`, `src/mundial/ingesta/actualizar.py`; Test `tests/test_actualizar.py`. Modify `src/mundial/cli.py` (add command).
 
-- [ ] Step 1: starter mapping (extend at runtime check; canonical = martj42 names):
+- [x] Step 1: starter mapping (extend at runtime check; canonical = martj42 names):
 
 ```csv
 nombre_fuente,nombre_canonico
@@ -461,7 +461,7 @@ China PR,China
 Czechia,Czech Republic
 ```
 
-- [ ] Step 2: failing tests (fake clients from fixtures; degraded-cascade case):
+- [x] Step 2: failing tests (fake clients from fixtures; degraded-cascade case):
 
 ```python
 import json
@@ -527,7 +527,7 @@ def test_canonico_aplica_mapeo():
     assert actualizar.canonico("Mexico") == "Mexico"
 ```
 
-- [ ] Step 3: implement `actualizar.py`:
+- [x] Step 3: implement `actualizar.py`:
 
 ```python
 """Orquestación de sincronización: estáticos → histórico → fixtures (cascada fd → FIFA)."""
@@ -661,7 +661,7 @@ def sincronizar(
     return mensajes
 ```
 
-- [ ] Step 4: add CLI command to `cli.py`:
+- [x] Step 4: add CLI command to `cli.py`:
 
 ```python
 @app.command()
@@ -676,7 +676,7 @@ def actualizar() -> None:
         consola.print(mensaje)
 ```
 
-- [ ] Step 5: tests pass → live run `uv run mundial actualizar` → expect 16 estadios, ~49.5k históricos, ≥72 partidos, **0 equipos sin mapear** (extend `mapeo_nombres.csv` if the warning lists any). Commit `feat: actualizar command with source cascade and name mapping`.
+- [x] Step 5: tests pass → live run `uv run mundial actualizar` → expect 16 estadios, ~49.5k históricos, ≥72 partidos, **0 equipos sin mapear** (extend `mapeo_nombres.csv` if the warning lists any). Commit `feat: actualizar command with source cascade and name mapping`.
 
 ---
 
@@ -684,7 +684,7 @@ def actualizar() -> None:
 
 **Files:** Create `src/mundial/modelo/__init__.py` (empty), `src/mundial/modelo/dixon_coles.py`; Test `tests/test_dixon_coles.py`.
 
-- [ ] Step 1: failing tests (decay weights; analytic gradient vs finite differences; synthetic recovery incl. neutral home advantage):
+- [x] Step 1: failing tests (decay weights; analytic gradient vs finite differences; synthetic recovery incl. neutral home advantage):
 
 ```python
 from datetime import date, timedelta
@@ -743,7 +743,7 @@ def test_recupera_parametros_sinteticos():
     assert abs(ajuste.rho) < 0.1
 ```
 
-- [ ] Step 2: run → FAIL. Step 3: implement `dixon_coles.py`:
+- [x] Step 2: run → FAIL. Step 3: implement `dixon_coles.py`:
 
 ```python
 """Dixon-Coles ponderado en el tiempo para selecciones (corrección ρ de marcadores bajos)."""
@@ -896,7 +896,7 @@ def ajustar(partidos, referencia: date, partidos_minimos: int = 5,
     )
 ```
 
-- [ ] Step 4: tests pass (gradient check is the critical one) → commit `feat: weighted Dixon-Coles with analytic gradients`.
+- [x] Step 4: tests pass (gradient check is the critical one) → commit `feat: weighted Dixon-Coles with analytic gradients`.
 
 ---
 
@@ -904,7 +904,7 @@ def ajustar(partidos, referencia: date, partidos_minimos: int = 5,
 
 **Files:** Create `src/mundial/modelo/entrenar.py`; Test `tests/test_entrenar.py`. Modify `src/mundial/cli.py`.
 
-- [ ] Step 1: failing test:
+- [x] Step 1: failing test:
 
 ```python
 from datetime import date
@@ -938,7 +938,7 @@ def test_entrenar_y_guardar(tmp_path):
     assert meta["version"] == "dc-1.0"
 ```
 
-- [ ] Step 2: implement `entrenar.py`:
+- [x] Step 2: implement `entrenar.py`:
 
 ```python
 """Ajuste del modelo base sobre el histórico y persistencia de ratings."""
@@ -982,7 +982,7 @@ def entrenar_y_guardar(
     return ajuste
 ```
 
-- [ ] Step 3: CLI command:
+- [x] Step 3: CLI command:
 
 ```python
 @app.command()
@@ -1012,13 +1012,13 @@ def ratings() -> None:
     consola.print(tabla)
 ```
 
-- [ ] Step 4: all tests pass → live run: `uv run mundial actualizar && uv run mundial ratings` → sanity check: top 10 should be plausible (Spain/Argentina/France/England-tier teams). Commit `feat: ratings training command storing Dixon-Coles fit`.
+- [x] Step 4: all tests pass → live run: `uv run mundial actualizar && uv run mundial ratings` → sanity check: top 10 should be plausible (Spain/Argentina/France/England-tier teams). Commit `feat: ratings training command storing Dixon-Coles fit`.
 
 ---
 
 ### Task 8: Close phase
 
-- [ ] Update `CLAUDE.md` (F1 done; document `actualizar`/`ratings` commands, schema, DC params), mark this plan's checkboxes, push, verify CI still green.
+- [x] Update `CLAUDE.md` (F1 done; document `actualizar`/`ratings` commands, schema, DC params), mark this plan's checkboxes, push, verify CI still green.
 
 ## Self-review notes
 

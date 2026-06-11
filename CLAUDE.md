@@ -43,16 +43,25 @@ Layer coverage honesty: STRONG = ratings, form, context, H2H, forward odds histo
 
 ```bash
 uv sync
-uv run mundial snapshot   # capture odds → data/snapshots/
-uv run pytest             # 13 tests, all offline
+uv run mundial snapshot    # capture odds → data/snapshots/
+uv run mundial actualizar  # sync stadiums + 49k historical results + WC fixtures into SQLite
+uv run mundial ratings     # fit Dixon-Coles on last 10y, store ratings, print top 10
+uv run pytest              # 28 tests, all offline
 ```
 
 CI: `.github/workflows/snapshot.yml`, dual cron (`0 4-14/2 * * *` + `*/30 0-3,15-23 * * *` UTC), commits snapshots to main, `concurrency: snapshot`.
 
+## Model facts (F1 fit, 2026-06-11)
+
+- `modelo/dixon_coles.py`: weighted NLL with analytic gradients (gradient-checked vs finite differences), L-BFGS-B, ρ bounded ±0.5, L2 1e-3 for identifiability, attack/defense centered post-fit (μ compensated). Real fit: 9,476 matches / 263 teams in 0.4 s; home advantage 0.231, ρ −0.061; top-10 sanity = Argentina/Spain/England/Brazil… ✓.
+- Known quirk: non-FIFA teams (e.g. Basque Country) can rank high on few friendly wins — harmless for WC predictions; consider FIFA-member filter or higher `partidos_minimos` if it bothers downstream features.
+- Name canonicalization: `actualizar.canonico()` via `data/static/mapeo_nombres.csv` (canonical = martj42 names). `mundial actualizar` warns about unmapped teams — keep that at 0.
+- football-data free tier has NO venue → stadiums joined from FIFA calendar on `(utcDate, home tla)`; knockout TBD matches skipped until teams defined.
+
 ## Phase status
 
 - **F0 DONE (2026-06-11):** snapshotter live (BSD 16-book comparisons + Odds API h2h), first real snapshot committed, CI cron active.
-- **F1 next:** static stadium data (16 venues: altitude/coords/tz), fixtures/results ingestion (football-data.org → fifa → OpenLigaDB cascade), martj42 bootstrap, SQLite schema, Dixon-Coles base fit.
+- **F1 DONE (2026-06-11):** SQLite schema; 16 stadiums static; martj42 loader (skips NA-score future fixtures); football-data→FIFA cascade with degradation messages; `mundial actualizar` + `mundial ratings`; Dixon-Coles fit stored in `ratings`/`modelo_meta`.
 - **F2:** full engine (layers 1,3,4,6,7) + de-vig + blend + `mundial predecir/hoy/jornada`.
 - **F3:** Streamlit dashboard (5 pages). **F4:** injuries/squad values/xG. **F5:** Brier/RPS tracking + optional GBM layer.
 
