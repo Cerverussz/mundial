@@ -1,0 +1,17 @@
+nombre,ciudad,pais,altitud_m,lat,lon,tz
+Mexico City Stadium,Mexico City,Mexico,2240,19.3029,-99.1505,America/Mexico_City
+Guadalajara Stadium,Guadalajara,Mexico,1548,20.6817,-103.4626,America/Mexico_City
+Monterrey Stadium,Monterrey,Mexico,540,25.6692,-100.2444,America/Monterrey
+Atlanta Stadium,Atlanta,United States,290,33.7554,-84.4010,America/New_York
+Boston Stadium,Boston,United States,89,42.0909,-71.2643,America/New_York
+Dallas Stadium,Dallas,United States,184,32.7473,-97.0945,America/Chicago
+Houston Stadium,Houston,United States,15,29.6847,-95.4107,America/Chicago
+Kansas City Stadium,Kansas City,United States,265,39.0489,-94.4839,America/Chicago
+Los Angeles Stadium,Los Angeles,United States,30,33.9535,-118.3392,America/Los_Angeles
+Miami Stadium,Miami,United States,3,25.9580,-80.2389,America/New_York
+New York/New Jersey Stadium,New Jersey,United States,3,40.8135,-74.0745,America/New_York
+Philadelphia Stadium,Philadelphia,United States,12,39.9008,-75.1675,America/New_York
+San Francisco Bay Area Stadium,San Francisco Bay Area,United States,26,37.4033,-121.9694,America/Los_Angeles
+Seattle Stadium,Seattle,United States,5,47.5952,-122.3316,America/Los_Angeles
+Toronto Stadium,Toronto,Canada,76,43.6332,-79.4186,America/Toronto
+BC Place Vancouver,Vancouver,Canada,5,49.2767,-123.1119,America/Vancouver
