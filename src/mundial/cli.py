@@ -190,6 +190,33 @@ def jornada(numero: int = typer.Argument(..., help="Jornada de fase de grupos (1
 
 
 @app.command()
+def telegram(
+    configurar: bool = typer.Option(
+        False, "--configurar", help="Detecta tu chat_id tras escribirle al bot."
+    ),
+) -> None:
+    """Envía por Telegram los pronósticos de hoy y los resultados de ayer."""
+    from mundial.notificaciones.telegram import ClienteTelegram, armar_resumen
+
+    cliente = ClienteTelegram(clave("TELEGRAM_BOT_TOKEN"))
+    if configurar:
+        chat_id = cliente.obtener_chat_id()
+        if chat_id:
+            consola.print(f"Tu chat_id es [bold]{chat_id}[/] — guárdalo en .env como "
+                          f"TELEGRAM_CHAT_ID={chat_id}")
+        else:
+            consola.print("[yellow]No veo mensajes:[/] escríbele cualquier cosa al bot en "
+                          "Telegram y vuelve a correr este comando.")
+        return
+    resumen = armar_resumen(_conexion_lista(), cliente_bsd=_cliente_bsd_opcional())
+    if resumen is None:
+        consola.print("Nada que enviar: no hay partidos hoy ni resultados de ayer.")
+        return
+    enviados = cliente.enviar(clave("TELEGRAM_CHAT_ID"), resumen)
+    consola.print(f"[green]Enviado a Telegram[/] ({enviados} mensaje(s)).")
+
+
+@app.command()
 def precision() -> None:
     """Precisión acumulada (Brier/RPS): modelo vs mercado vs blend."""
     from rich.table import Table

@@ -51,8 +51,13 @@ uv run mundial hoy / jornada 1    # predict today's matches / a group-stage matc
 uv run mundial precision   # Brier/RPS: modelo vs mercado vs blend (needs finished matches)
 uv run mundial fuentes     # source freshness, Odds API credits, DB counts
 uv run streamlit run src/mundial/dashboard/app.py   # 5-page dashboard
-uv run pytest              # 62 tests, all offline
+uv run mundial telegram    # send today's digest to Telegram (--configurar to detect chat_id)
+uv run pytest              # 68 tests, all offline
 ```
+
+## Telegram notifications
+
+`notificaciones/telegram.py` + `.github/workflows/telegram.yml` (cron 13:00 UTC pre-match digest, 04:30 UTC results digest). The CI job rebuilds the DB (actualizar → ratings) and sends fresh predictions — it is a *notification* layer; audit-grade prediction history accumulates where the CLI runs persistently. Secrets needed: `TELEGRAM_BOT_TOKEN` (from @BotFather), `TELEGRAM_CHAT_ID` (via `mundial telegram --configurar`), plus `FOOTBALL_DATA_KEY`. Messages are HTML, chunked at 4,000 chars; a match whose prediction fails degrades to one line, never kills the digest.
 
 ## Engine facts (F2-F5, 2026-06-11)
 
