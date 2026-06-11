@@ -45,6 +45,33 @@ def actualizar() -> None:
 
 
 @app.command()
+def ratings() -> None:
+    """Ajusta Dixon-Coles sobre el histórico y guarda los ratings."""
+    from rich.table import Table
+
+    from mundial.modelo import entrenar
+    from mundial.persistencia import bd, esquema
+
+    conexion = bd.conectar()
+    esquema.crear(conexion)
+    ajuste = entrenar.entrenar_y_guardar(conexion)
+    consola.print(
+        f"Ajustado con {ajuste.n_partidos} partidos, {len(ajuste.equipos)} equipos "
+        f"(ventaja local: {ajuste.ventaja_local:.3f}, rho: {ajuste.rho:.3f})"
+    )
+    tabla = Table(title="Top 10 fuerza neta (ataque + defensa)")
+    tabla.add_column("Equipo")
+    tabla.add_column("Ataque", justify="right")
+    tabla.add_column("Defensa", justify="right")
+    fuertes = sorted(
+        ajuste.equipos, key=lambda e: ajuste.ataque[e] + ajuste.defensa[e], reverse=True
+    )[:10]
+    for e in fuertes:
+        tabla.add_row(e, f"{ajuste.ataque[e]:+.3f}", f"{ajuste.defensa[e]:+.3f}")
+    consola.print(tabla)
+
+
+@app.command()
 def snapshot(
     horas_min_odds_api: float = typer.Option(
         5.0, help="No consultar The Odds API si su último snapshot es más reciente que esto."
