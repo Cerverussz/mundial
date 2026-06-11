@@ -6,8 +6,14 @@ Built exclusively on **free data sources** (no paid tiers, no credit card). A sc
 
 ## Status
 
-- **F0 (done):** odds snapshotter (BSD + The Odds API) running locally and on CI cron.
-- **F1–F5 (upcoming):** data backbone & Elo/Dixon-Coles bootstrap → full prediction engine + CLI → Streamlit dashboard → squad availability & xG layers → accuracy tracking (Brier/RPS).
+All phases live (built June 11, 2026 — tournament day 1):
+
+- **Snapshotter** (CI cron): multi-book odds + lineups/absences archived to git every 30–120 min.
+- **Data backbone:** 16 stadiums (altitude/coords/tz), 49k historical internationals (CC0), WC fixtures with source cascade (football-data.org → api.fifa.com).
+- **Engine:** time-weighted Dixon-Coles (analytic gradients) + layered factors (form, altitude, rest, weather, H2H, absences, match importance) + Shin de-vigged market consensus + configurable blend + value flags + confidence with reasons.
+- **CLI:** `predecir`, `hoy`, `jornada`, `actualizar`, `ratings`, `snapshot`, `precision`, `fuentes` — Spanish output.
+- **Dashboard:** 5-page Streamlit app (matches, match detail with score-matrix heatmap and odds evolution, model-vs-market, accuracy, system health).
+- **Accuracy tracking:** Brier + RPS per prediction, model vs market benchmark vs blend.
 
 See the full design in [docs/superpowers/specs/](docs/superpowers/specs/2026-06-10-mundial-prediccion-design.md) and the architecture notes in [CLAUDE.md](CLAUDE.md).
 

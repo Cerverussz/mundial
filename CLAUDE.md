@@ -43,11 +43,25 @@ Layer coverage honesty: STRONG = ratings, form, context, H2H, forward odds histo
 
 ```bash
 uv sync
-uv run mundial snapshot    # capture odds → data/snapshots/
-uv run mundial actualizar  # sync stadiums + 49k historical results + WC fixtures into SQLite
+uv run mundial snapshot    # capture odds + lineups/absences → data/snapshots/
+uv run mundial actualizar  # sync stadiums, 49k historical results, WC fixtures, odds → SQLite
 uv run mundial ratings     # fit Dixon-Coles on last 10y, store ratings, print top 10
-uv run pytest              # 28 tests, all offline
+uv run mundial predecir mex-rsa   # predict a match (TLA pair or name substrings)
+uv run mundial hoy / jornada 1    # predict today's matches / a group-stage matchday
+uv run mundial precision   # Brier/RPS: modelo vs mercado vs blend (needs finished matches)
+uv run mundial fuentes     # source freshness, Odds API credits, DB counts
+uv run streamlit run src/mundial/dashboard/app.py   # 5-page dashboard
+uv run pytest              # 62 tests, all offline
 ```
+
+## Engine facts (F2-F5, 2026-06-11)
+
+- Pipeline per prediction: λs from latest ratings → multiplicative factors (each logged for the Spanish explanation) → DC score matrix (τ on 0-0/0-1/1-0/1-1) → model 1X2 → market consensus (per-book **Shin de-vig**, median across books excl. synthetic `consensus`) → blend `0.4·model + 0.6·market` → **matrix rescaled to blended 1X2** → score + top-3.
+- Factor caps: forma ±15% (≥5 matches, shrinkage +2, √ damping) · altitud −6%/−3% (≥2000/≥1500 m, accustomed list exempt) · descanso −3% (<4 days) · clima −3% (≥30 °C, from BSD event detail) · H2H ±4% (±2%/avg goal) · bajas down to −12% (0.04·ai_score per starter, 0.025 unknown, doubtful ×0.5) · fase: knockout ×0.96, final ×0.95, matchday 3 ×0.99.
+- Value flags: model−market > 5 pts; "sostenida" if also >5 pts vs consensus ≥2 h older. Confianza Alta/Media/Baja from penalties (no odds −25, stale odds −10, few books −5, weak form data −10, <10 matches/team −15, divergence>15pts −15, no lineup info −5).
+- Real home advantage only when host nation plays in its own country (ANFITRIONES map in prediccion.py); all other WC matches are neutral.
+- `cuotas` accumulates every snapshot (opening→closing history); `predicciones` stores blend+model+market probs, matrix JSON, factors JSON, git data-commit hash. `precision.evaluar` uses the LAST pre-kickoff prediction per finished match.
+- Decisions: player importance via BSD predicted-XI `ai_score` (injured players aren't in the XI, so they usually weigh 0.025 — refine later with caps from /worldcup/squads/); BSD `weather` instead of Open-Meteo; **xG deferred** — no finished WC match existed to verify the stats endpoint shape (revisit after matchday 1); optional GBM/SHAP layer documented as future work, not built.
 
 CI: `.github/workflows/snapshot.yml`, dual cron (`0 4-14/2 * * *` + `*/30 0-3,15-23 * * *` UTC), commits snapshots to main, `concurrency: snapshot`.
 
@@ -62,7 +76,9 @@ CI: `.github/workflows/snapshot.yml`, dual cron (`0 4-14/2 * * *` + `*/30 0-3,15
 
 - **F0 DONE (2026-06-11):** snapshotter live (BSD 16-book comparisons + Odds API h2h), first real snapshot committed, CI cron active.
 - **F1 DONE (2026-06-11):** SQLite schema; 16 stadiums static; martj42 loader (skips NA-score future fixtures); football-data→FIFA cascade with degradation messages; `mundial actualizar` + `mundial ratings`; Dixon-Coles fit stored in `ratings`/`modelo_meta`.
-- **F2:** full engine (layers 1,3,4,6,7) + de-vig + blend + `mundial predecir/hoy/jornada`.
-- **F3:** Streamlit dashboard (5 pages). **F4:** injuries/squad values/xG. **F5:** Brier/RPS tracking + optional GBM layer.
+- **F2 DONE (2026-06-11):** full engine + de-vig + blend + value flags + `predecir/hoy/jornada`. First real prediction: Mexico 2-0 South Africa (model 80/14/6 vs market 68/21/11, 39 books).
+- **F4 DONE (2026-06-11):** snapshot captures lineups+absences (cron archives injury history in git); plantel + intangibles factors live. xG deferred (see Engine facts).
+- **F5 DONE (2026-06-11):** Brier/RPS evaluation (modelo vs mercado vs blend) + `precision` + `fuentes`.
+- **F3 DONE (2026-06-11):** Streamlit dashboard, 5 pages, helpers tested in `dashboard/datos.py`.
 
-Update this file at the end of every phase.
+**Maintenance loop during the tournament:** after each matchday run `mundial actualizar && mundial ratings` (results refresh the fit), then `mundial precision` to watch whether the model beats the market benchmark. Open TODOs: xG loader once a finished-match stats response can be inspected; player-importance via caps; optional GBM/SHAP layer; optional Streamlit Community Cloud publish.
