@@ -231,19 +231,26 @@ def snapshot(
         desde=hoy.isoformat(), hasta=(hoy + timedelta(days=DIAS_VENTANA)).isoformat()
     )
     comparaciones: dict[str, dict] = {}
+    alineaciones: dict[str, dict] = {}
     for evento in eventos:
         if evento.get("status") == "finished":
             continue
         comparaciones[str(evento["id"])] = bsd.comparacion_cuotas(evento["id"])
         time.sleep(PAUSA_ENTRE_LLAMADAS_S)
+        try:
+            alineaciones[str(evento["id"])] = bsd.alineaciones(evento["id"])
+            time.sleep(PAUSA_ENTRE_LLAMADAS_S)
+        except Exception:
+            pass  # las alineaciones pueden no existir aún; las cuotas no se pierden
     ruta_bsd = snapshots.escribir_snapshot(
         "bsd",
-        {"eventos": eventos, "comparaciones": comparaciones},
+        {"eventos": eventos, "comparaciones": comparaciones, "alineaciones": alineaciones},
         momento=ahora,
         base=DIR_SNAPSHOTS,
     )
     consola.print(
-        f"[green]BSD[/]: {len(eventos)} eventos, {len(comparaciones)} comparaciones → {ruta_bsd}"
+        f"[green]BSD[/]: {len(eventos)} eventos, {len(comparaciones)} comparaciones, "
+        f"{len(alineaciones)} alineaciones → {ruta_bsd}"
     )
 
     ultimo = snapshots.ultimo_snapshot("odds-api", base=DIR_SNAPSHOTS)

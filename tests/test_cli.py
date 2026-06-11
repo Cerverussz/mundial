@@ -18,6 +18,9 @@ class BsdFalso:
     def comparacion_cuotas(self, evento_id):
         return json.loads((FIXTURES / "bsd_comparison.json").read_text())
 
+    def alineaciones(self, evento_id):
+        return {"lineup_status": "predicted", "lineups": {}, "unavailable_players": {}}
+
 
 class OddsApiFalso:
     llamadas = 0
