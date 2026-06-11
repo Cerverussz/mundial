@@ -33,6 +33,18 @@ def principal() -> None:
 
 
 @app.command()
+def actualizar() -> None:
+    """Sincroniza estáticos, histórico y fixtures/resultados a la base local."""
+    from mundial.ingesta import actualizar as modulo
+    from mundial.persistencia import bd, esquema
+
+    conexion = bd.conectar()
+    esquema.crear(conexion)
+    for mensaje in modulo.sincronizar(conexion):
+        consola.print(mensaje)
+
+
+@app.command()
 def snapshot(
     horas_min_odds_api: float = typer.Option(
         5.0, help="No consultar The Odds API si su último snapshot es más reciente que esto."
