@@ -34,6 +34,7 @@ def _desde_fd(m: dict) -> dict | None:
         "local": canonico(m["homeTeam"]["name"]),
         "visitante": canonico(m["awayTeam"]["name"]),
         "local_tla": m["homeTeam"].get("tla"),
+        "visitante_tla": m["awayTeam"].get("tla"),
         "fase": m.get("stage"),
         "grupo": m.get("group"),
         "jornada": m.get("matchday"),
@@ -53,6 +54,7 @@ def _desde_fifa(c: dict) -> dict | None:
         "local": canonico(c["local_nombre"]),
         "visitante": canonico(c["visitante_nombre"]),
         "local_tla": c.get("local_tla"),
+        "visitante_tla": c.get("visitante_tla"),
         "fase": None,
         "grupo": c.get("grupo"),
         "jornada": None,
@@ -101,9 +103,16 @@ def sincronizar(
     estadio_por_llave = {
         (c["fecha_utc"], c["local_tla"]): (c["estadio"], c["id_fifa"]) for c in calendario
     }
+    tlas: dict[str, str] = {}
     for p in partidos:
+        tla_visitante = p.pop("visitante_tla", None)
+        tla_local = p.pop("local_tla")
+        if tla_local:
+            tlas[p["local"]] = tla_local
+        if tla_visitante:
+            tlas[p["visitante"]] = tla_visitante
         p["estadio"], p["id_fifa"] = estadio_por_llave.get(
-            (p["fecha_utc"], p.pop("local_tla")), (None, None)
+            (p["fecha_utc"], tla_local), (None, None)
         )
     conexion.executemany(
         """INSERT OR REPLACE INTO partidos
@@ -115,12 +124,19 @@ def sincronizar(
     )
     equipos = sorted({p["local"] for p in partidos} | {p["visitante"] for p in partidos})
     conexion.executemany(
-        "INSERT OR IGNORE INTO equipos(nombre) VALUES (?)", [(e,) for e in equipos]
+        """INSERT INTO equipos(nombre, tla) VALUES (?, ?)
+           ON CONFLICT(nombre) DO UPDATE SET tla = COALESCE(excluded.tla, tla)""",
+        [(e, tlas.get(e)) for e in equipos],
     )
     conexion.commit()
     mensajes.append(
         f"partidos: {len(partidos)} (fuente: {partidos[0]['fuente'] if partidos else '—'})"
     )
+
+    from mundial.ingesta import cargar_cuotas
+
+    n_cuotas = cargar_cuotas.cargar_nuevos(conexion)
+    mensajes.append(f"cuotas nuevas desde snapshots: {n_cuotas}")
 
     historicos = {
         f["local"] for f in conexion.execute("SELECT DISTINCT local FROM resultados_historicos")

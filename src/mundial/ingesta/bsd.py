@@ -45,3 +45,15 @@ class ClienteBsd:
         respuesta = self._http.get(f"/events/{evento_id}/odds/comparison/")
         respuesta.raise_for_status()
         return respuesta.json()
+
+    def detalle(self, evento_id: int) -> dict:
+        """Detalle del evento (incluye clima precalculado y terreno neutral)."""
+        respuesta = self._http.get(f"/events/{evento_id}/", params={"full": "true"})
+        respuesta.raise_for_status()
+        return respuesta.json()
+
+    def alineaciones(self, evento_id: int) -> dict:
+        """Alineaciones (predichas o confirmadas) y jugadores no disponibles."""
+        respuesta = self._http.get(f"/events/{evento_id}/lineups/", params={"full": "true"})
+        respuesta.raise_for_status()
+        return respuesta.json()
