@@ -1,0 +1,16 @@
+# Secrets — never commit
+.env
+
+# Derived local data (rebuilt from snapshots)
+data/local/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store

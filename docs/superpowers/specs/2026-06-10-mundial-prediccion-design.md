@@ -30,7 +30,7 @@ Sistema de "conocimiento continuo" para predecir marcadores de fútbol: en cada 
 | The Odds API | 500 créditos/mes | Cuotas `soccer_fifa_world_cup` (h2h, totals, outrights), ~100 casas | Respaldo de cuotas (~8 capturas/día) |
 | football-data.org | 10 req/min, TIER_ONE | Fixtures, resultados, tablas del Mundial (confirmado). Sin eliminatorias/amistosos gratis | Backbone estable de fixtures/resultados |
 | api.fifa.com v3 (no documentada) | Sin auth | 104 partidos con estadios (idCompetition=17, idSeason=285023), convocatorias completas | Respaldo de fixtures + fuente de convocatorias |
-| API-Football (api-sports.io) | 100 req/día | Lesiones, alineaciones, cuotas, stats | Relleno de huecos. **Verificar día 1 si season=2026 entra en el tier gratis** |
+| API-Football (api-sports.io) | 100 req/día | Lesiones, alineaciones, cuotas, stats | **Verificado 2026-06-11: el tier gratis solo cubre temporadas 2022–2024 ⇒ inútil para el Mundial 2026.** Se conserva la key solo por si sirve para histórico |
 | eloratings.net | TSV públicos, sin key | Elo de selecciones actualizado a diario (`World.tsv`) | Feature de cordura + regularización |
 | martj42/international_results (GitHub) | CC0, CSV crudo | 49 473 partidos internacionales 1872→hoy (+goleadores, penales, nombres históricos) | Bootstrap de ratings. Riesgo casi nulo |
 | Open-Meteo | Gratis, sin key | Clima por coordenadas | Capa de contexto |
@@ -102,7 +102,7 @@ La regla de auditoría: una predicción referencia el hash del commit de datos +
 
 ## 6. Ingesta: cascada, caché, presupuesto
 
-- Interfaz por tipo de dato; orden de cascada: **cuotas** BSD → The Odds API · **fixtures/resultados** football-data.org → api.fifa.com → OpenLigaDB · **lesiones** BSD → API-Football · **clima** Open-Meteo · **ratings** eloratings.net → Elo propio.
+- Interfaz por tipo de dato; orden de cascada: **cuotas** BSD → The Odds API · **fixtures/resultados** football-data.org → api.fifa.com → OpenLigaDB · **lesiones** BSD (sin respaldo: API-Football no cubre 2026 en tier gratis; si BSD cae, la capa L5 degrada a convocatorias FIFA sin estado de lesión) · **clima** Open-Meteo · **ratings** eloratings.net → Elo propio.
 - Caché con TTL por "¿pudo cambiar?": resultado final = inmutable; cuotas TTL 30 min (5 min en las 2 h previas al kickoff); fixtures TTL 12 h; convocatorias TTL 24 h; estáticos = para siempre.
 - `presupuesto.py` persiste conteos por fuente/día y bloquea con aviso antes de exceder un límite; el dashboard lo muestra.
 - Si todas las fuentes de un dato fallan: la predicción sale igual, con confianza degradada y lista explícita de datos faltantes. Nunca hard-fail.
@@ -155,7 +155,7 @@ pytest: de-vig proporcional y Shin (márgenes conocidos, ida y vuelta) · Dixon-
 ## 13. Riesgos y verificaciones pendientes
 
 - **BSD puede caerse o desaparecer** (3 caídas en 7 días): mitigado por cascada + snapshots persistidos; nada depende solo de él.
-- **API-Football season 2026 en tier gratis:** sin confirmar; se prueba el día 1 con la key del usuario y se ajusta la cascada si no entra.
+- **API-Football season 2026 en tier gratis:** verificado 2026-06-11 — NO entra (solo 2022–2024). Lesiones quedan sin respaldo: si BSD cae, L5 degrada a convocatorias FIFA y la predicción lo declara.
 - **api.fifa.com podría añadir auth/geoblock durante el torneo:** respaldo OpenLigaDB + openfootball/worldcup.json.
 - **Cuotas de cierre ≠ apertura para partidos tempranos:** los primeros partidos tendrán historial corto de cuotas; la calibración opening→closing mejora con el torneo.
 - **Valores de Transfermarkt:** zona gris de ToS; se usa snapshot puntual del dataset comunitario, no scraping en vivo, y la capa L5 funciona sin él (bajas sin ponderar) si se decide retirarlo.
