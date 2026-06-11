@@ -25,7 +25,7 @@
 - Create: `src/mundial/config.py`
 - Create: `tests/test_config.py`
 
-- [ ] **Step 1: Write `pyproject.toml`**
+- [x] **Step 1: Write `pyproject.toml`**
 
 ```toml
 [project]
@@ -57,7 +57,7 @@ packages = ["src/mundial"]
 line-length = 100
 ```
 
-- [ ] **Step 2: Write `src/mundial/__init__.py`** (empty file) **and `src/mundial/config.py`**
+- [x] **Step 2: Write `src/mundial/__init__.py`** (empty file) **and `src/mundial/config.py`**
 
 ```python
 """Configuración: claves de API y rutas del proyecto."""
@@ -83,7 +83,7 @@ def clave(nombre: str) -> str:
     return valor
 ```
 
-- [ ] **Step 3: Write the test `tests/test_config.py`**
+- [x] **Step 3: Write the test `tests/test_config.py`**
 
 ```python
 import pytest
@@ -107,12 +107,12 @@ def test_rutas_apuntan_al_repo():
     assert config.DIR_SNAPSHOTS == config.RAIZ / "data" / "snapshots"
 ```
 
-- [ ] **Step 4: Install and run tests**
+- [x] **Step 4: Install and run tests**
 
 Run: `uv sync && uv run pytest -v`
 Expected: 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pyproject.toml uv.lock src tests
@@ -128,7 +128,7 @@ git commit -m "feat: project scaffold with config module"
 - Create: `src/mundial/ingesta/snapshots.py`
 - Test: `tests/test_snapshots.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 from datetime import datetime, timezone
@@ -160,12 +160,12 @@ def test_ultimo_snapshot_encuentra_el_mas_reciente(tmp_path):
     assert snapshots.ultimo_snapshot("odds-api", base=tmp_path) == t2
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_snapshots.py -v`
 Expected: FAIL with `ModuleNotFoundError` / `AttributeError`.
 
-- [ ] **Step 3: Implement `src/mundial/ingesta/snapshots.py`**
+- [x] **Step 3: Implement `src/mundial/ingesta/snapshots.py`**
 
 ```python
 """Escritura y lectura de snapshots crudos comprimidos (la bitácora del repo)."""
@@ -210,12 +210,12 @@ def ultimo_snapshot(fuente: str, base: Path | None = None) -> datetime | None:
     return datetime.fromisoformat(leer_snapshot(rutas[-1])["capturado_en"])
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_snapshots.py -v`
 Expected: 3 passed. (Note `ultimo_snapshot` relies on lexicographic path order == chronological order, which the `YYYY-MM-DD/HHMMSSZ` naming guarantees.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/mundial/ingesta tests/test_snapshots.py
@@ -230,7 +230,7 @@ git commit -m "feat: gzip snapshot writer with latest-snapshot lookup"
 - Create: `src/mundial/ingesta/bsd.py`
 - Test: `tests/test_bsd.py` (uses real captured fixtures `tests/fixtures/bsd_eventos.json`, `tests/fixtures/bsd_comparison.json`)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 import json
@@ -283,12 +283,12 @@ def test_comparacion_cuotas():
     assert "1x2" in datos["markets"]
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_bsd.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'mundial.ingesta.bsd'`.
 
-- [ ] **Step 3: Implement `src/mundial/ingesta/bsd.py`**
+- [x] **Step 3: Implement `src/mundial/ingesta/bsd.py`**
 
 ```python
 """Cliente de Bzzoiro Sports Data (BSD) — cuotas multi-casa, eventos del Mundial."""
@@ -340,12 +340,12 @@ class ClienteBsd:
         return respuesta.json()
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_bsd.py -v`
 Expected: 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/mundial/ingesta/bsd.py tests/test_bsd.py tests/fixtures
@@ -361,7 +361,7 @@ git commit -m "feat: BSD client with paginated events and odds comparison"
 - Create: `tests/fixtures/odds_api_h2h.json` (captured in Step 1)
 - Test: `tests/test_odds_api.py`
 
-- [ ] **Step 1: Capture a real fixture (costs 1 of 500 monthly credits)**
+- [x] **Step 1: Capture a real fixture (costs 1 of 500 monthly credits)**
 
 ```bash
 set -a; source .env; set +a
@@ -371,7 +371,7 @@ python3 -m json.tool tests/fixtures/odds_api_h2h.json | head -5
 
 Expected: JSON array of events with `bookmakers`.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 ```python
 import json
@@ -400,12 +400,12 @@ def test_cuotas_h2h_devuelve_eventos_y_presupuesto():
     assert presupuesto == {"restantes": "499", "usadas": "1"}
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_odds_api.py -v`
 Expected: FAIL with `ModuleNotFoundError`.
 
-- [ ] **Step 4: Implement `src/mundial/ingesta/odds_api.py`**
+- [x] **Step 4: Implement `src/mundial/ingesta/odds_api.py`**
 
 ```python
 """Cliente de The Odds API — respaldo de cuotas, presupuesto de 500 créditos/mes."""
@@ -441,12 +441,12 @@ class ClienteOddsApi:
         return respuesta.json(), presupuesto
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_odds_api.py -v`
 Expected: 1 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/mundial/ingesta/odds_api.py tests/test_odds_api.py tests/fixtures/odds_api_h2h.json
@@ -463,7 +463,7 @@ git commit -m "feat: The Odds API client reporting credit budget headers"
 
 Behavior: always snapshot BSD (events for the next 3 days + per-event odds comparison, with a 0.4 s pause between calls to respect throttling); snapshot The Odds API only if its latest snapshot is older than `--horas-min-odds-api` (default 5 h, so ~5 calls/day ≈ 150 credits/month). Print a Spanish summary including the Odds API credits remaining.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 import json
@@ -532,12 +532,12 @@ def test_snapshot_bsd_incluye_comparaciones(monkeypatch, tmp_path):
     assert contenido["payload"]["comparaciones"]["8287"]["home_team"] == "Mexico"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_cli.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'mundial.cli'`.
 
-- [ ] **Step 3: Implement `src/mundial/cli.py`**
+- [x] **Step 3: Implement `src/mundial/cli.py`**
 
 ```python
 """CLI del sistema de predicción del Mundial 2026."""
@@ -614,17 +614,17 @@ def snapshot(
 
 Note for the implementer: the tests monkeypatch `cli.DIR_SNAPSHOTS`, so `snapshot()` must reference the module-level name (as shown) rather than importing it inside the function.
 
-- [ ] **Step 4: Run all tests**
+- [x] **Step 4: Run all tests**
 
 Run: `uv run pytest -v`
 Expected: all pass (3 config + 3 snapshots + 3 bsd + 1 odds-api + 3 cli = 13).
 
-- [ ] **Step 5: First real snapshot (live run)**
+- [x] **Step 5: First real snapshot (live run)**
 
 Run: `uv run mundial snapshot`
 Expected: green lines for BSD (≥3 events — today has Mexico–South Africa 19:00Z plus 2 more matches through Jun 12-14 window) and The Odds API with remaining credits ≈ 497. Verify: `ls data/snapshots/$(date -u +%Y-%m-%d)/`.
 
-- [ ] **Step 6: Commit (code + first snapshot)**
+- [x] **Step 6: Commit (code + first snapshot)**
 
 ```bash
 git add src/mundial/cli.py tests/test_cli.py data/snapshots
@@ -638,7 +638,7 @@ git commit -m "feat: mundial snapshot CLI command; first live snapshot"
 **Files:**
 - Create: `.github/workflows/snapshot.yml`
 
-- [ ] **Step 1: Write the workflow**
+- [x] **Step 1: Write the workflow**
 
 ```yaml
 name: snapshot
@@ -681,7 +681,7 @@ jobs:
           fi
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add .github/workflows/snapshot.yml
@@ -697,7 +697,7 @@ git commit -m "ci: scheduled odds snapshot workflow"
 - Create: `CLAUDE.md`
 - Create: `.env.example`
 
-- [ ] **Step 1: Write `.env.example`**
+- [x] **Step 1: Write `.env.example`**
 
 ```bash
 # Claves de API — regístrate gratis (sin tarjeta) y copia este archivo a .env
@@ -707,18 +707,18 @@ ODDS_API_KEY=         # https://the-odds-api.com/
 API_FOOTBALL_KEY=     # https://api-sports.io/ (solo histórico 2022-2024 en tier gratis)
 ```
 
-- [ ] **Step 2: Write `README.md`** — setup in English: prerequisites (uv), `uv sync`, copy `.env.example` → `.env`, run `uv run mundial snapshot`, run `uv run pytest`. Link to the spec at `docs/superpowers/specs/` and note that `data/snapshots/` is committed by CI on a schedule. Include the GitHub Secrets needed (`BSD_TOKEN`, `ODDS_API_KEY`).
+- [x] **Step 2: Write `README.md`** — setup in English: prerequisites (uv), `uv sync`, copy `.env.example` → `.env`, run `uv run mundial snapshot`, run `uv run pytest`. Link to the spec at `docs/superpowers/specs/` and note that `data/snapshots/` is committed by CI on a schedule. Include the GitHub Secrets needed (`BSD_TOKEN`, `ODDS_API_KEY`).
 
-- [ ] **Step 3: Write `CLAUDE.md`** covering: project goal (one paragraph); architecture summary (snapshots-in-git, SQLite derived, cascade); the source table with limits and verified facts (BSD league_id=27, comparison endpoint, auth header; The Odds API 500 credits/month and the 5 h snapshot spacing rule; football-data.org TIER_ONE WC only; API-Football free tier useless for 2026 — verified); layer coverage STRONG/MEDIUM/WEAK table; conventions (Spanish domain names in code, Spanish CLI/dashboard output, English commits/README, TDD with pytest, uv); how to run (snapshot command, tests); phase status (F0 done, F1-F5 pending per spec). Keep it under ~120 lines; update it at the end of every phase.
+- [x] **Step 3: Write `CLAUDE.md`** covering: project goal (one paragraph); architecture summary (snapshots-in-git, SQLite derived, cascade); the source table with limits and verified facts (BSD league_id=27, comparison endpoint, auth header; The Odds API 500 credits/month and the 5 h snapshot spacing rule; football-data.org TIER_ONE WC only; API-Football free tier useless for 2026 — verified); layer coverage STRONG/MEDIUM/WEAK table; conventions (Spanish domain names in code, Spanish CLI/dashboard output, English commits/README, TDD with pytest, uv); how to run (snapshot command, tests); phase status (F0 done, F1-F5 pending per spec). Keep it under ~120 lines; update it at the end of every phase.
 
-- [ ] **Step 4: Commit docs**
+- [x] **Step 4: Commit docs**
 
 ```bash
 git add README.md CLAUDE.md .env.example
 git commit -m "docs: README, CLAUDE.md and .env.example"
 ```
 
-- [ ] **Step 5: Create the public repo and push**
+- [x] **Step 5: Create the public repo and push**
 
 ```bash
 gh auth status   # verify auth first; if missing, ask the user to run `gh auth login`
@@ -727,7 +727,7 @@ gh repo create mundial --public --source=. --remote=origin --push
 
 Expected: repo created at `<user>/mundial`, main branch pushed. If the name is taken, use `mundial-2026`.
 
-- [ ] **Step 6: Set Actions secrets**
+- [x] **Step 6: Set Actions secrets**
 
 ```bash
 set -a; source .env; set +a
@@ -735,7 +735,7 @@ gh secret set BSD_TOKEN --body "$BSD_TOKEN"
 gh secret set ODDS_API_KEY --body "$ODDS_API_KEY"
 ```
 
-- [ ] **Step 7: Trigger and verify the workflow**
+- [x] **Step 7: Trigger and verify the workflow**
 
 ```bash
 gh workflow run snapshot.yml
