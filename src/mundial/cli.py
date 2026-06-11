@@ -190,6 +190,91 @@ def jornada(numero: int = typer.Argument(..., help="Jornada de fase de grupos (1
 
 
 @app.command()
+def precision() -> None:
+    """Precisión acumulada (Brier/RPS): modelo vs mercado vs blend."""
+    from rich.table import Table
+
+    from mundial.modelo import precision as modulo
+
+    informe = modulo.evaluar(_conexion_lista())
+    if informe["n"] == 0:
+        consola.print("Aún no hay partidos terminados con predicción previa al kickoff.")
+        return
+    aciertos_1x2 = sum(1 for p in informe["partidos"] if p["acerto_1x2"])
+    aciertos_marcador = sum(1 for p in informe["partidos"] if p["acerto_marcador"])
+    consola.print(
+        f"{informe['n']} partidos evaluados — 1X2 acertado: {aciertos_1x2}/{informe['n']}, "
+        f"marcador exacto: {aciertos_marcador}/{informe['n']}"
+    )
+    tabla = Table(title="Brier / RPS promedio (menor es mejor)")
+    tabla.add_column("Variante")
+    tabla.add_column("Brier", justify="right")
+    tabla.add_column("RPS", justify="right")
+    tabla.add_column("n", justify="right")
+    for nombre in ("modelo", "mercado", "blend"):
+        datos = informe[nombre]
+        if datos["n"]:
+            tabla.add_row(
+                nombre, f"{datos['brier']:.4f}", f"{datos['rps']:.4f}", str(datos["n"])
+            )
+    consola.print(tabla)
+    for p in informe["partidos"][-10:]:
+        marca = "✓" if p["acerto_1x2"] else "✗"
+        consola.print(
+            f"  {marca} {p['partido']} — predicho {p['marcador_predicho']}, "
+            f"P({p['resultado']}) dada: {p['metricas'].get('blend', {}).get('brier', 0):.3f} Brier"
+        )
+
+
+@app.command()
+def fuentes() -> None:
+    """Estado de las fuentes de datos, presupuesto y frescura."""
+    from rich.table import Table
+
+    conexion = _conexion_lista()
+    ahora = datetime.now(timezone.utc)
+    tabla = Table(title="Fuentes")
+    tabla.add_column("Fuente")
+    tabla.add_column("Último snapshot", justify="right")
+    tabla.add_column("Hoy", justify="right")
+    for fuente in ("bsd", "odds-api"):
+        ultimo = snapshots.ultimo_snapshot(fuente, base=DIR_SNAPSHOTS)
+        edad = f"hace {(ahora - ultimo).total_seconds() / 3600:.1f} h" if ultimo else "nunca"
+        hoy_n = len(list(DIR_SNAPSHOTS.glob(f"{ahora.strftime('%Y-%m-%d')}/*-{fuente}.json.gz")))
+        tabla.add_row(fuente, edad, str(hoy_n))
+    consola.print(tabla)
+    rutas_odds = sorted(DIR_SNAPSHOTS.glob("*/*-odds-api.json.gz"))
+    if rutas_odds:
+        contenido = snapshots.leer_snapshot(rutas_odds[-1])
+        presupuesto = (
+            contenido["payload"].get("presupuesto")
+            if isinstance(contenido["payload"], dict) else None
+        )
+        if presupuesto:
+            consola.print(
+                f"The Odds API: {presupuesto['restantes']} créditos restantes este mes"
+            )
+    estadisticas = {
+        "partidos": "SELECT COUNT(*) FROM partidos",
+        "resultados históricos": "SELECT COUNT(*) FROM resultados_historicos",
+        "filas de cuotas": "SELECT COUNT(*) FROM cuotas",
+        "bajas registradas": "SELECT COUNT(*) FROM bajas",
+        "predicciones": "SELECT COUNT(*) FROM predicciones",
+    }
+    for nombre, consulta in estadisticas.items():
+        consola.print(f"  {nombre}: {conexion.execute(consulta).fetchone()[0]}")
+    meta = conexion.execute(
+        "SELECT fecha_ajuste, n_partidos, n_equipos FROM modelo_meta "
+        "ORDER BY fecha_ajuste DESC LIMIT 1"
+    ).fetchone()
+    if meta:
+        consola.print(
+            f"  ratings: ajustados el {meta['fecha_ajuste']} "
+            f"({meta['n_partidos']} partidos, {meta['n_equipos']} equipos)"
+        )
+
+
+@app.command()
 def ratings() -> None:
     """Ajusta Dixon-Coles sobre el histórico y guarda los ratings."""
     from rich.table import Table
@@ -261,7 +346,10 @@ def snapshot(
         )
         return
     datos, presupuesto = _cliente_odds_api().cuotas_h2h()
-    ruta_odds = snapshots.escribir_snapshot("odds-api", datos, momento=ahora, base=DIR_SNAPSHOTS)
+    ruta_odds = snapshots.escribir_snapshot(
+        "odds-api", {"eventos": datos, "presupuesto": presupuesto},
+        momento=ahora, base=DIR_SNAPSHOTS,
+    )
     consola.print(
         f"[green]The Odds API[/]: {len(datos)} eventos → {ruta_odds} "
         f"(créditos restantes: {presupuesto['restantes']})"
