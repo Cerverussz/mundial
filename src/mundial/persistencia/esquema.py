@@ -50,6 +50,49 @@ CREATE TABLE IF NOT EXISTS modelo_meta(
   log_verosimilitud REAL,
   version TEXT
 );
+CREATE TABLE IF NOT EXISTS cuotas(
+  partido_id INTEGER NOT NULL,
+  capturado_en TEXT NOT NULL,
+  fuente TEXT NOT NULL,
+  casa TEXT NOT NULL,
+  mercado TEXT NOT NULL,
+  local REAL, empate REAL, visitante REAL,
+  PRIMARY KEY(partido_id, capturado_en, fuente, casa, mercado)
+);
+CREATE TABLE IF NOT EXISTS archivos_cargados(
+  ruta TEXT PRIMARY KEY,
+  cargado_en TEXT
+);
+CREATE TABLE IF NOT EXISTS eventos_bsd(
+  partido_id INTEGER PRIMARY KEY,
+  evento_id INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS bajas(
+  partido_id INTEGER NOT NULL,
+  equipo TEXT NOT NULL,
+  jugador TEXT NOT NULL,
+  estado TEXT,
+  razon TEXT,
+  ai_score REAL,
+  capturado_en TEXT NOT NULL,
+  PRIMARY KEY(partido_id, equipo, jugador, capturado_en)
+);
+CREATE TABLE IF NOT EXISTS predicciones(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  partido_id INTEGER NOT NULL,
+  creado_en TEXT NOT NULL,
+  commit_datos TEXT,
+  version_modelo TEXT,
+  marcador TEXT,
+  p_local REAL, p_empate REAL, p_visitante REAL,
+  p_local_modelo REAL, p_empate_modelo REAL, p_visitante_modelo REAL,
+  p_local_mercado REAL, p_empate_mercado REAL, p_visitante_mercado REAL,
+  matriz_json TEXT,
+  confianza TEXT,
+  razones_confianza TEXT,
+  factores_json TEXT,
+  valor_flags TEXT
+);
 """
 
 
