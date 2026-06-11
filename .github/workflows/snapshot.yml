@@ -1,0 +1,38 @@
+name: snapshot
+
+on:
+  schedule:
+    - cron: "0 4-14/2 * * *"        # base: cada 2 h fuera del horario de partidos
+    - cron: "*/30 0-3,15-23 * * *"  # cada 30 min en horario diario de partidos (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run mundial snapshot
+        env:
+          BSD_TOKEN: ${{ secrets.BSD_TOKEN }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      - name: Commit snapshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/snapshots
+          if git diff --cached --quiet; then
+            echo "Sin snapshots nuevos"
+          else
+            git commit -m "snapshot: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase origin main
+            git push
+          fi
