@@ -122,6 +122,7 @@ def sincronizar(
         c = calendario_por_llave.get((p["fecha_utc"], tla_local))
         p["estadio"] = c["estadio"] if c else None
         p["id_fifa"] = c["id_fifa"] if c else None
+        p["_id_stage"] = c["id_stage"] if c else None
         # football-data (tier gratis, retrasado) puede marcar FINISHED sin marcador;
         # el calendario FIFA sí lo trae — la cascada aplica por campo, no solo por fuente.
         if (
@@ -137,6 +138,10 @@ def sincronizar(
            VALUES (:id,:fecha_utc,:local,:visitante,:fase,:grupo,:jornada,:estadio,:estado,
                    :goles_local,:goles_visitante,:id_fifa,:fuente)""",
         partidos,
+    )
+    conexion.executemany(
+        "INSERT OR REPLACE INTO partidos_fifa VALUES (:id, :_id_stage)",
+        [p for p in partidos if p.get("_id_stage")],
     )
     equipos = sorted({p["local"] for p in partidos} | {p["visitante"] for p in partidos})
     conexion.executemany(

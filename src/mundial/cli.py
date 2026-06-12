@@ -207,10 +207,13 @@ def vigilar() -> None:
     from mundial.notificaciones import vigilar as modulo
     from mundial.notificaciones.telegram import ClienteTelegram
 
+    from mundial.ingesta.fifa import ClienteFifa
+
     cliente = ClienteTelegram(clave("TELEGRAM_BOT_TOKEN"))
     registro = modulo.vigilar(
         _conexion_lista(), cliente, clave("TELEGRAM_CHAT_ID"),
         cliente_bsd=_cliente_bsd_opcional(), dir_exportacion=DIR_PREDICCIONES,
+        cliente_fifa=ClienteFifa(),
     )
     for linea in registro:
         consola.print(linea)

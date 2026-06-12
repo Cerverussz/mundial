@@ -41,6 +41,7 @@ class ClienteFifa:
             simplificados.append(
                 {
                     "id_fifa": m.get("IdMatch"),
+                    "id_stage": m.get("IdStage"),
                     "fecha_utc": m.get("Date"),
                     "estadio": _descripcion((m.get("Stadium") or {}).get("Name") or []),
                     "grupo": _descripcion(m.get("GroupName") or []),
@@ -53,3 +54,18 @@ class ClienteFifa:
                 }
             )
         return simplificados
+
+    def alineacion_live(self, id_stage: str, id_match: str) -> dict:
+        """XI oficial desde el endpoint live (Status==1 = titular; FIFA lo publica T-60/75min)."""
+        respuesta = self._http.get(
+            f"/live/football/{ID_COMPETICION}/{ID_TEMPORADA}/{id_stage}/{id_match}",
+            params={"language": "en"})
+        respuesta.raise_for_status()
+        crudo = respuesta.json()
+
+        def titulares(lado: dict | None) -> list[str]:
+            return [_descripcion(j.get("PlayerName") or [])
+                    for j in (lado or {}).get("Players", []) if j.get("Status") == 1]
+
+        return {"local": titulares(crudo.get("HomeTeam")),
+                "visitante": titulares(crudo.get("AwayTeam"))}

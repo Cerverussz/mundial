@@ -86,6 +86,49 @@ def test_vigilar_alerta_patron(tmp_path):
     assert apuesta is not None
 
 
+def test_vigilar_alerta_xi_confirmado(tmp_path, monkeypatch):
+    from datetime import timedelta
+
+    from mundial.ingesta import snapshots
+
+    conexion = bd.conectar(tmp_path / "m.db")
+    esquema.crear(conexion)
+    kickoff = (AHORA + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    conexion.execute(
+        """INSERT INTO partidos(id, fecha_utc, local, visitante, estado, id_fifa)
+           VALUES (20, ?, 'Mexico', 'South Africa', 'TIMED', '400021443')""", (kickoff,))
+    conexion.execute("INSERT INTO partidos_fifa VALUES (20, '289273')")
+    conexion.execute("INSERT INTO eventos_bsd VALUES (20, 8287)")
+    conexion.commit()
+
+    base = tmp_path / "snaps"
+    xi_predicho = [f"Jugador {n}" for n in
+                   ("Uno", "Dos", "Tres", "Cuatro", "Cinco", "Seis",
+                    "Siete", "Ocho", "Nueve", "Diez", "Once")]
+    payload = {"alineaciones": {"8287": {"lineups": {
+        "home": {"players": [{"name": n} for n in xi_predicho]},
+        "away": {"players": [{"name": n} for n in xi_predicho]}}}}}
+    snapshots.escribir_snapshot("bsd", payload, momento=AHORA, base=base)
+    monkeypatch.setattr(vigilar, "DIR_SNAPSHOTS", base)
+
+    class FifaFalso:
+        def alineacion_live(self, id_stage, id_match):
+            # 3 cambios en el local respecto al predicho
+            local = ["Jugador Doce", "Jugador Trece", "Jugador Catorce"] + xi_predicho[3:]
+            return {"local": local, "visitante": list(xi_predicho)}
+
+    telegram = TelegramFalso()
+    vigilar.vigilar(conexion, telegram, "42", ahora=AHORA, ruta_estado=tmp_path / "n.json",
+                    cliente_fifa=FifaFalso())
+    xi_msg = next((m for m in telegram.mensajes if "XI confirmado" in m), None)
+    assert xi_msg is not None and "3 cambios" in xi_msg
+    # segunda corrida: no reenvía
+    n_antes = len(telegram.mensajes)
+    vigilar.vigilar(conexion, telegram, "42", ahora=AHORA, ruta_estado=tmp_path / "n.json",
+                    cliente_fifa=FifaFalso())
+    assert len(telegram.mensajes) == n_antes
+
+
 def test_vigilar_guarda_xg(tmp_path):
     from pathlib import Path
 

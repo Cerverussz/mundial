@@ -151,6 +151,10 @@ CREATE TABLE IF NOT EXISTS config(
   clave TEXT PRIMARY KEY,
   valor TEXT
 );
+CREATE TABLE IF NOT EXISTS partidos_fifa(
+  partido_id INTEGER PRIMARY KEY,
+  id_stage TEXT
+);
 """
 
 

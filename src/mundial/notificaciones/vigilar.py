@@ -6,17 +6,40 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mundial.config import RAIZ
+from mundial.config import DIR_SNAPSHOTS, RAIZ
+from mundial.ingesta import snapshots
 from mundial.notificaciones.telegram import ClienteTelegram, _bloque_prediccion
 
 RUTA_ESTADO = RAIZ / "data" / "notificaciones.json"
 VENTANA_PRE_HORAS = 2.5
+VENTANA_XI = (0.25, 1.7)  # horas antes del kickoff para revisar el XI confirmado
 
 
 def _leer_estado(ruta: Path) -> dict:
     if ruta.exists():
-        return json.loads(ruta.read_text(encoding="utf-8"))
-    return {"pre": [], "post": []}
+        estado = json.loads(ruta.read_text(encoding="utf-8"))
+        estado.setdefault("xi", [])
+        return estado
+    return {"pre": [], "post": [], "xi": []}
+
+
+def _xi_predicho(conexion, partido_id: int) -> dict | None:
+    """XI predicho (con ai_score) del snapshot BSD más reciente que cubra el evento."""
+    vinculo = conexion.execute(
+        "SELECT evento_id FROM eventos_bsd WHERE partido_id=?", (partido_id,)).fetchone()
+    if not vinculo:
+        return None
+    clave = str(vinculo["evento_id"])
+    for ruta in sorted(DIR_SNAPSHOTS.glob("*/*-bsd.json.gz"), reverse=True):
+        contenido = snapshots.leer_snapshot(ruta)
+        alineacion = (contenido["payload"].get("alineaciones") or {}).get(clave)
+        if alineacion and (alineacion.get("lineups") or {}):
+            lineups = alineacion["lineups"]
+            return {
+                lado: [j["name"] for j in (datos or {}).get("players", [])]
+                for lado, datos in lineups.items()
+            }
+    return None
 
 
 def _guardar_estado(ruta: Path, estado: dict) -> None:
@@ -67,6 +90,45 @@ def _mensaje_resultado(partido, evaluado, informe, resumen_ledger=None) -> str:
     return "\n".join(lineas)
 
 
+def _revisar_xi(conexion, cliente, chat_id, cliente_fifa, ahora, estado, registro) -> None:
+    """Alerta cuando el XI oficial de FIFA difiere del XI predicho que usó la predicción."""
+    proximos = conexion.execute(
+        """SELECT p.id, p.fecha_utc, p.local, p.visitante, p.id_fifa, f.id_stage
+           FROM partidos p JOIN partidos_fifa f ON f.partido_id = p.id
+           WHERE p.goles_local IS NULL AND p.id_fifa IS NOT NULL"""
+    ).fetchall()
+    for partido in proximos:
+        if partido["id"] in estado["xi"]:
+            continue
+        kickoff = datetime.fromisoformat(partido["fecha_utc"].replace("Z", "+00:00"))
+        horas = (kickoff - ahora).total_seconds() / 3600.0
+        if not VENTANA_XI[0] <= horas <= VENTANA_XI[1]:
+            continue
+        try:
+            oficial = cliente_fifa.alineacion_live(partido["id_stage"], partido["id_fifa"])
+        except Exception:
+            continue
+        if not oficial.get("local") or len(oficial["local"]) < 11:
+            continue  # XI aún no publicado
+        predicho = _xi_predicho(conexion, partido["id"])
+        cambios_txt = ""
+        if predicho:
+            for lado, equipo in (("local", partido["local"]), ("visitante", partido["visitante"])):
+                pred_set = {n.split()[-1].lower() for n in predicho.get("home" if lado == "local"
+                            else "away", [])}
+                ofi_set = {n.split()[-1].lower() for n in oficial.get(lado, [])}
+                if pred_set and len(ofi_set - pred_set) >= 3:
+                    cambios_txt += (f"\n{equipo}: {len(ofi_set - pred_set)} cambios vs el XI "
+                                    f"con el que predijimos")
+        texto = (f"🚨 <b>XI confirmado</b> — {partido['local']} vs {partido['visitante']} "
+                 f"(en {horas:.1f} h)" + (cambios_txt or
+                 "\nCoincide con el XI predicho.") +
+                 ("\nRevisa la cuota antes del kickoff." if cambios_txt else ""))
+        cliente.enviar(chat_id, texto)
+        estado["xi"].append(partido["id"])
+        registro.append(f"XI confirmado: {partido['local']} vs {partido['visitante']}")
+
+
 def vigilar(
     conexion: sqlite3.Connection,
     cliente: ClienteTelegram,
@@ -76,6 +138,7 @@ def vigilar(
     cliente_bsd=None,
     dir_exportacion=None,
     patrones_validados=None,
+    cliente_fifa=None,
 ) -> list[str]:
     """Envía análisis pre-partido (≤2.5 h antes) y resultados post-partido, sin duplicar."""
     from mundial.factores import mercado
@@ -86,6 +149,9 @@ def vigilar(
     ruta_estado = ruta_estado or RUTA_ESTADO
     estado = _leer_estado(ruta_estado)
     registro: list[str] = []
+
+    if cliente_fifa is not None:
+        _revisar_xi(conexion, cliente, chat_id, cliente_fifa, ahora, estado, registro)
 
     proximos = conexion.execute(
         """SELECT id, fecha_utc, local, visitante FROM partidos
