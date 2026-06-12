@@ -217,6 +217,48 @@ def vigilar() -> None:
 
 
 @app.command()
+def sondear(partido: str = typer.Argument(..., help="tla-tla, igual que predecir")) -> None:
+    """Sondea AH/totales reales en The Odds API (≈5 créditos) y compara con el modelo."""
+    import json as json_lib
+    from datetime import datetime, timezone
+
+    from mundial.ingesta.actualizar import canonico
+    from mundial.ingesta.odds_api import ClienteOddsApi
+
+    conexion = _conexion_lista()
+    partido_id = _resolver_partido(conexion, partido)
+    fila = conexion.execute("SELECT * FROM partidos WHERE id=?", (partido_id,)).fetchone()
+    cliente = _cliente_odds_api()
+    eventos = cliente.eventos()
+    objetivo = next(
+        (e for e in eventos
+         if {canonico(e["home_team"]), canonico(e["away_team"])}
+         == {fila["local"], fila["visitante"]}), None)
+    if objetivo is None:
+        consola.print("[yellow]El partido no está en The Odds API todavía.[/]")
+        return
+    datos, presupuesto = cliente.cuotas_evento(objetivo["id"])
+    if int(presupuesto["restantes"] or 0) < 100:
+        consola.print("[red]Presupuesto bajo[/] — quedan menos de 100 créditos.")
+    filas = ClienteOddsApi.filas_mercados(
+        datos, partido_id, datetime.now(timezone.utc).isoformat())
+    conexion.executemany("INSERT OR REPLACE INTO cuotas_mercado VALUES (?,?,?,?,?,?,?)", filas)
+    conexion.commit()
+    consola.print(f"{len(filas)} cuotas AH/totales guardadas "
+                  f"(créditos restantes: {presupuesto['restantes']})")
+    ultima = conexion.execute(
+        """SELECT mercados_json FROM predicciones WHERE partido_id=?
+           ORDER BY creado_en DESC LIMIT 1""", (partido_id,)).fetchone()
+    if ultima and ultima["mercados_json"]:
+        justas = json_lib.loads(ultima["mercados_json"]).get("ah", {})
+        for f in filas:
+            if f[4] == "ah":
+                clave = f"{float(f[5].split('@')[1]):+.2f}"
+                consola.print(f"  {f[5]} @{f[6]:.2f} ({f[3]}) — justa modelo: "
+                              f"{justas.get(clave, '—')}")
+
+
+@app.command()
 def calibrar(
     aplicar: bool = typer.Option(False, "--aplicar", help="Guarda el w recomendado en config.")
 ) -> None:
