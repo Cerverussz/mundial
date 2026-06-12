@@ -14,7 +14,7 @@ from scipy.stats import poisson
 from mundial.config import RAIZ
 from mundial.factores import contexto, forma, h2h, intangibles, mercado, plantel
 from mundial.modelo import confianza as modulo_confianza
-from mundial.modelo import explicacion
+from mundial.modelo import explicacion, inversion, mercados
 from mundial.modelo.dixon_coles import Ajuste
 
 MAX_GOLES = 10
@@ -45,6 +45,7 @@ class Prediccion:
     edad_cuotas_h: float | None
     n_casas: int
     matriz: np.ndarray
+    mercados: dict
 
 
 def matriz_marcadores(lam: float, mu: float, rho: float, max_goles: int = MAX_GOLES):
@@ -153,6 +154,7 @@ COLUMNAS_PREDICCION = (
     "p_local_modelo", "p_empate_modelo", "p_visitante_modelo",
     "p_local_mercado", "p_empate_mercado", "p_visitante_mercado",
     "matriz_json", "confianza", "razones_confianza", "factores_json", "valor_flags",
+    "mercados_json",
 )
 
 
@@ -171,9 +173,11 @@ def cargar_exportadas(conexion: sqlite3.Connection, directorio=None) -> int:
             for linea in archivo:
                 if not linea.strip():
                     continue
+                datos = json.loads(linea)
+                datos.setdefault("mercados_json", None)  # JSONL antiguo sin la clave
                 cursor = conexion.execute(
                     f"INSERT OR IGNORE INTO predicciones ({columnas}) VALUES ({marcadores})",
-                    json.loads(linea),
+                    datos,
                 )
                 insertadas += cursor.rowcount
     conexion.commit()
@@ -268,15 +272,44 @@ def predecir(
             ahora - datetime.fromisoformat(capturado_en.replace("Z", "+00:00"))
         ).total_seconds() / 3600.0
 
+    # Blend en espacio lambda cuando el mercado da DNB y O/U 2.5; si no, fallback 1X2.
+    origen_matriz = "reescalado_1x2"
+    matriz_final = matriz
     if p_mercado:
         p_final = {
             k: peso_modelo * p_modelo[k] + (1.0 - peso_modelo) * p_mercado[k]
             for k in RESULTADOS
         }
-        matriz_final = reescalar_matriz(matriz, p_final)
+        p_dnb, _, _ = mercado.cuotas_consenso_mercado(conexion, partido_id, "draw_no_bet")
+        p_ou, _, _ = mercado.cuotas_consenso_mercado(conexion, partido_id, "over_under_25")
+        invertido = None
+        if p_dnb and p_ou:
+            invertido = inversion.invertir_lambdas(
+                p_dnb.get("HOME", 0.5), p_ou.get("over@2.5", 0.5), ajuste.rho
+            )
+        if invertido:
+            lam_b = peso_modelo * lam + (1.0 - peso_modelo) * invertido[0]
+            mu_b = peso_modelo * mu_v + (1.0 - peso_modelo) * invertido[1]
+            matriz_final = matriz_marcadores(lam_b, mu_b, ajuste.rho)
+            origen_matriz = "blend_lambda"
+        matriz_final = reescalar_matriz(matriz_final, p_final)  # contrato 1X2 intacto
     else:
         p_final = dict(p_modelo)
-        matriz_final = matriz
+
+    precios = {
+        "origen_matriz": origen_matriz,
+        "over_under_25": {
+            "p_over": mercados.prob_over(matriz_final, 2.5),
+            "p_under": mercados.prob_under(matriz_final, 2.5),
+            "justa_over": mercados.cuota_justa_total(matriz_final, 2.5, "over"),
+            "justa_under": mercados.cuota_justa_total(matriz_final, 2.5, "under"),
+        },
+        "btts": {"p_si": mercados.prob_btts(matriz_final)},
+        "dnb": dict(zip(("justa_local", "justa_visitante"),
+                        mercados.cuotas_justas_dnb(matriz_final))),
+        "ah": {f"{h:+.2f}": mercados.cuota_justa_ah(matriz_final, h)
+               for h in (-2.0, -1.5, -1.0, -0.5, -0.25, 0.25, 0.5, 1.0, 1.5, 2.0)},
+    }
 
     valor_flags = []
     if p_mercado:
@@ -291,7 +324,8 @@ def predecir(
                     anterior_mercado and (p_modelo[k] - anterior_mercado[k]) > UMBRAL_VALOR
                 )
                 valor_flags.append(
-                    {"resultado": k, "margen": round(margen, 4), "sostenida": sostenida}
+                    {"mercado": "1x2", "seleccion": k, "resultado": k,
+                     "margen": round(margen, 4), "sostenida": sostenida}
                 )
 
     divergencia = max(abs(p_modelo[k] - p_mercado[k]) for k in RESULTADOS) if p_mercado else 0.0
@@ -356,6 +390,7 @@ def predecir(
         edad_cuotas_h=edad_cuotas_h,
         n_casas=n_casas,
         matriz=matriz_final,
+        mercados=precios,
     )
     fila = dict(
         zip(
@@ -370,6 +405,7 @@ def predecir(
                 json.dumps(razones, ensure_ascii=False),
                 json.dumps(factores, ensure_ascii=False),
                 json.dumps(valor_flags, ensure_ascii=False),
+                json.dumps(precios, ensure_ascii=False),
             ),
         )
     )

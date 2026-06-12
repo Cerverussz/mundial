@@ -84,6 +84,19 @@ def preparar_bd_completa(tmp_path):
                '1x2', ?, ?, ?)""",
             (casa, cl, ce, cv),
         )
+    # Mercados 2-way: DNB, O/U 2.5 (over algo caro → posible flag) y BTTS, dos casas.
+    mercado_filas = [
+        ("draw_no_bet", "HOME", 1.16), ("draw_no_bet", "AWAY", 5.4),
+        ("over_under_25", "over@2.5", 2.30), ("over_under_25", "under@2.5", 1.62),
+        ("btts", "yes", 2.50), ("btts", "no", 1.52),
+    ]
+    for casa in ("pinnacle", "bet365"):
+        for mercado_clave, seleccion, cuota in mercado_filas:
+            conexion.execute(
+                """INSERT INTO cuotas_mercado VALUES (537327, '2026-06-11T09:00:00+00:00',
+                   'bsd', ?, ?, ?, ?)""",
+                (casa, mercado_clave, seleccion, cuota),
+            )
     conexion.commit()
     return conexion
 
@@ -104,6 +117,28 @@ def test_predecir_integra_todo(tmp_path):
 
     segundo = prediccion.predecir(conexion, 537327)
     assert segundo.cambios is not None  # ahora hay una anterior para comparar
+
+
+def test_predecir_blend_lambda_y_mercados(tmp_path):
+    conexion = preparar_bd_completa(tmp_path)
+    resultado = prediccion.predecir(conexion, 537327)
+    assert resultado.mercados  # dict con precios derivados
+    ou = resultado.mercados["over_under_25"]
+    assert 1.0 < ou["justa_over"] < 10.0
+    assert ou["p_over"] + ou["p_under"] == pytest.approx(1.0)
+    assert "btts" in resultado.mercados and "dnb" in resultado.mercados
+    assert resultado.mercados["origen_matriz"] == "blend_lambda"
+    fila = conexion.execute(
+        "SELECT mercados_json FROM predicciones WHERE partido_id=537327").fetchone()
+    assert fila["mercados_json"] is not None
+
+
+def test_predecir_sin_mercados_2way_usa_fallback(tmp_path):
+    conexion = preparar_bd_completa(tmp_path)
+    conexion.execute("DELETE FROM cuotas_mercado")
+    conexion.commit()
+    resultado = prediccion.predecir(conexion, 537327)
+    assert resultado.mercados["origen_matriz"] == "reescalado_1x2"
 
 
 def test_exportar_e_importar_predicciones(tmp_path):
