@@ -83,6 +83,14 @@ def sincronizar(
             mensajes.append(f"histórico martj42: {n} resultados")
         except Exception as error:
             mensajes.append(f"[ADVERTENCIA] martj42 no disponible: {error}")
+        try:
+            from mundial.ingesta import mundiales
+
+            ruta_m, ruta_g = mundiales.descargar(DIR_LOCAL)
+            n_wc = mundiales.cargar(conexion, ruta_m, ruta_g)
+            mensajes.append(f"histórico Mundiales (90'): {n_wc} partidos")
+        except Exception as error:
+            mensajes.append(f"[ADVERTENCIA] histórico WC no disponible: {error}")
 
     partidos: list[dict] = []
     try:
