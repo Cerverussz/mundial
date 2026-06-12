@@ -89,3 +89,21 @@ def divergencias(conexion: sqlite3.Connection) -> list[dict]:
         resultado.append(d)
     resultado.sort(key=lambda d: d["divergencia"], reverse=True)
     return resultado
+
+
+def patrones_registrados() -> list[dict]:
+    """Patrones de data/patrones.json (vacío si no existe)."""
+    from mundial.config import RAIZ
+    ruta = RAIZ / "data" / "patrones.json"
+    if not ruta.exists():
+        return []
+    return json.loads(ruta.read_text(encoding="utf-8"))
+
+
+def apuestas_recientes(conexion: sqlite3.Connection, limite: int = 20) -> list[dict]:
+    filas = conexion.execute(
+        """SELECT a.estado, a.mercado, a.seleccion, a.cuota, a.origen, a.clv,
+                  a.retorno_flat, p.local, p.visitante
+           FROM apuestas a JOIN partidos p ON p.id = a.partido_id
+           ORDER BY a.creado_en DESC LIMIT ?""", (limite,)).fetchall()
+    return [dict(f) for f in filas]

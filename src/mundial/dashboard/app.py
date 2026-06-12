@@ -237,12 +237,47 @@ def pagina_sistema() -> None:
         )
 
 
+def pagina_patrones() -> None:
+    st.title("Patrones y paper trading")
+    con = conexion()
+    st.subheader("Patrones pre-registrados")
+    patrones = datos.patrones_registrados()
+    if patrones:
+        st.dataframe(pd.DataFrame([
+            {"id": p["id"], "hipótesis": p["hipotesis"], "estado": p["estado"],
+             "tasa": p["efecto"]["tasa"], "baseline": p["efecto"]["baseline"],
+             "n": p["n"], "p_adj": p.get("p_adj_bh")}
+            for p in patrones
+        ]), use_container_width=True, hide_index=True)
+    else:
+        st.info("Sin patrones activos: la minería (`mundial minar`) no encontró ninguno que "
+                "sobreviva la corrección BH q=0.10 sobre datos de Mundiales. Los patrones de "
+                "mercado (empate barato en eliminatorias) esperan acumular historial de cuotas.")
+
+    st.subheader("Paper trading")
+    from mundial.modelo import ledger as ledger_mod
+    ledger_mod.liquidar_pendientes(con)
+    r = ledger_mod.resumen(con)
+    if r.get("n"):
+        cols = st.columns(4)
+        cols[0].metric("Apuestas", r["n"])
+        cols[1].metric("PnL flat", f"{r['pnl_flat']:+.2f}u")
+        cols[2].metric("Yield", f"{r['yield_flat'] * 100:+.1f}%")
+        cols[3].metric("CLV medio", f"{(r['clv_medio'] or 0) * 100:+.2f}%" if r.get("clv_medio")
+                       is not None else "—")
+        st.dataframe(pd.DataFrame(datos.apuestas_recientes(con)),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.caption("Aún no hay apuestas simuladas — se abren con value flags sostenidos.")
+
+
 st.navigation(
     [
         st.Page(pagina_hoy, title="Próximos partidos", icon="📅", default=True),
         st.Page(pagina_partido, title="Partido", icon="🎯"),
         st.Page(pagina_mercado, title="Modelo vs mercado", icon="📈"),
         st.Page(pagina_precision, title="Precisión", icon="📊"),
+        st.Page(pagina_patrones, title="Patrones y ledger", icon="🔎"),
         st.Page(pagina_sistema, title="Sistema", icon="🩺"),
     ]
 ).run()

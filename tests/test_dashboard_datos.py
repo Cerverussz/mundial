@@ -62,3 +62,16 @@ def test_divergencias(tmp_path):
     filas = datos.divergencias(conexion)
     assert len(filas) == 1
     assert filas[0]["divergencia"] > 0.1
+
+
+def test_apuestas_recientes(tmp_path):
+    conexion = preparar_bd(tmp_path)
+    conexion.execute(
+        """INSERT INTO apuestas(partido_id, creado_en, origen, mercado, seleccion, cuota,
+           estado, retorno_flat, clv) VALUES
+           (1, '2026-06-11T17:00:00+00:00', 'modelo', 'over_under_25', 'over@2.5', 2.1,
+            'ganada', 1.1, 0.05)""")
+    conexion.commit()
+    filas = datos.apuestas_recientes(conexion)
+    assert len(filas) == 1
+    assert filas[0]["mercado"] == "over_under_25" and filas[0]["local"] == "Mexico"

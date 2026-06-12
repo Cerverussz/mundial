@@ -220,6 +220,36 @@ def vigilar() -> None:
 
 
 @app.command()
+def checkpoint() -> None:
+    """Checkpoint del torneo: precisión, ledger/CLV, calibración w, estado de patrones y GBM."""
+    from mundial.modelo import calibracion
+    from mundial.modelo import ledger as ledger_mod
+    from mundial.modelo import precision as precision_mod
+
+    conexion = _conexion_lista()
+    informe = precision_mod.evaluar(conexion)
+    consola.print(f"Partidos evaluados: {informe['n']}")
+    for variante in ("modelo", "mercado", "blend"):
+        d = informe[variante]
+        if d["n"]:
+            consola.print(f"  {variante}: RPS {d['rps']:.4f} · Brier {d['brier']:.4f} · "
+                          f"logloss {d['logloss']:.4f}")
+    ledger_mod.liquidar_pendientes(conexion)
+    r = ledger_mod.resumen(conexion)
+    if r["n"]:
+        consola.print(f"Ledger: {r['n']} apuestas, yield {r['yield_flat'] * 100:+.1f}%, "
+                      f"CLV medio {(r['clv_medio'] or 0) * 100:+.2f}% (n={r['clv_n']})")
+    calibrado = calibracion.optimizar_w(conexion)
+    consola.print(f"w recomendado: {calibrado.get('w_recomendado')} "
+                  f"(crudo {calibrado.get('w_crudo')}, n={calibrado['n']}) — "
+                  f"aplica con `mundial calibrar --aplicar`")
+    activo = conexion.execute("SELECT valor FROM config WHERE clave='gbm_activo'").fetchone()
+    consola.print(f"GBM activo: {activo['valor'] if activo else 'sin evaluar'}")
+    consola.print("Patrones: re-ejecuta `mundial minar` y revisa holdout 2026 antes de "
+                  "promover o retirar entradas de data/patrones.json")
+
+
+@app.command()
 def sondear(partido: str = typer.Argument(..., help="tla-tla, igual que predecir")) -> None:
     """Sondea AH/totales reales en The Odds API (≈5 créditos) y compara con el modelo."""
     import json as json_lib
