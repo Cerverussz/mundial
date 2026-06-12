@@ -57,6 +57,29 @@ def test_evaluar_usa_ultima_prediccion_antes_del_kickoff(tmp_path):
     assert informe["modelo"]["rps"] < informe["mercado"]["rps"]  # modelo estaba más seguro
 
 
+def test_logloss_en_evaluar(tmp_path):
+    import math
+
+    conexion = bd.conectar(tmp_path / "m.db")
+    esquema.crear(conexion)
+    conexion.execute(
+        """INSERT INTO partidos(id, fecha_utc, local, visitante, estado,
+           goles_local, goles_visitante)
+           VALUES (1, '2026-06-11T19:00:00Z', 'Mexico', 'South Africa', 'FINISHED', 2, 0)"""
+    )
+    conexion.execute(
+        """INSERT INTO predicciones (partido_id, creado_en, marcador,
+           p_local, p_empate, p_visitante,
+           p_local_modelo, p_empate_modelo, p_visitante_modelo,
+           p_local_mercado, p_empate_mercado, p_visitante_mercado)
+           VALUES (1, '2026-06-11T18:00:00+00:00', '2-0', 0.73, 0.18, 0.09,
+                   0.8, 0.14, 0.06, 0.68, 0.21, 0.11)"""
+    )
+    conexion.commit()
+    informe = precision.evaluar(conexion)
+    assert informe["blend"]["logloss"] == pytest.approx(-math.log(0.73), rel=1e-6)
+
+
 def test_evaluar_sin_partidos_terminados(tmp_path):
     conexion = bd.conectar(tmp_path / "m.db")
     esquema.crear(conexion)

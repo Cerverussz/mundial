@@ -40,8 +40,31 @@ def preparar_bd(tmp_path):
            INSERT INTO modelo_meta VALUES ('2026-06-11', 0.1, 0.23, -0.06, 9000, 200,
                                            -100.0, 'dc-1.0');"""
     )
+    # Mercados para el partido 10 en dos momentos (>2h y reciente) → flag sostenido en over.
+    # BSD siempre trae 1X2 junto a los demás mercados, así que se siembra también.
+    for momento in ("2026-06-11T20:00:00+00:00", "2026-06-11T23:30:00+00:00"):
+        for casa in ("pinnacle", "bet365"):
+            conexion.execute(
+                "INSERT INTO cuotas VALUES (10, ?, 'bsd', ?, '1x2', 1.95, 3.4, 4.0)",
+                (momento, casa))
+            for mercado_clave, seleccion, cuota in (
+                ("draw_no_bet", "HOME", 1.55), ("draw_no_bet", "AWAY", 2.45),
+                ("over_under_25", "over@2.5", 2.40), ("over_under_25", "under@2.5", 1.55),
+            ):
+                conexion.execute(
+                    "INSERT INTO cuotas_mercado VALUES (10, ?, 'bsd', ?, ?, ?, ?)",
+                    (momento, casa, mercado_clave, seleccion, cuota))
     conexion.commit()
     return conexion
+
+
+def test_vigilar_abre_y_liquida_apuestas(tmp_path):
+    conexion = preparar_bd(tmp_path)
+    registro = vigilar.vigilar(
+        conexion, TelegramFalso(), "42", ahora=AHORA, ruta_estado=tmp_path / "n.json")
+    n_apuestas = conexion.execute("SELECT COUNT(*) c FROM apuestas").fetchone()["c"]
+    assert n_apuestas >= 1
+    assert any("apuestas papel" in r for r in registro)
 
 
 def test_vigilar_envia_pre_y_post_sin_duplicar(tmp_path):

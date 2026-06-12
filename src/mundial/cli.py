@@ -217,6 +217,39 @@ def vigilar() -> None:
 
 
 @app.command()
+def ledger() -> None:
+    """Resumen del paper trading: PnL, yield y CLV."""
+    from mundial.modelo import ledger as modulo
+
+    conexion = _conexion_lista()
+    modulo.liquidar_pendientes(conexion)
+    r = modulo.resumen(conexion)
+    if not r["n"] and not r["pendientes"]:
+        consola.print("Sin apuestas simuladas todavía.")
+        return
+    if r["n"] and r.get("clv_medio") is not None:
+        consola.print(
+            f"Apuestas: {r['n']} liquidadas, {r['pendientes']} pendientes · "
+            f"PnL flat: {r.get('pnl_flat', 0):+.2f}u · yield: {r.get('yield_flat', 0) * 100:+.1f}% · "
+            f"CLV medio: {r['clv_medio'] * 100:+.2f}% (n={r['clv_n']})"
+        )
+    else:
+        consola.print(
+            f"Apuestas: {r['n']} liquidadas, {r['pendientes']} pendientes · "
+            f"PnL flat: {r.get('pnl_flat', 0):+.2f}u · CLV aún sin datos"
+        )
+    for f in conexion.execute(
+        "SELECT a.*, p.local, p.visitante FROM apuestas a JOIN partidos p ON p.id=a.partido_id "
+        "ORDER BY a.creado_en DESC LIMIT 15"
+    ):
+        clv = f" CLV {f['clv'] * 100:+.1f}%" if f["clv"] is not None else ""
+        consola.print(
+            f"  {f['estado']:>14} {f['local']} vs {f['visitante']} — "
+            f"{f['mercado']}/{f['seleccion']} @{f['cuota']:.2f} ({f['origen']}){clv}"
+        )
+
+
+@app.command()
 def telegram(
     configurar: bool = typer.Option(
         False, "--configurar", help="Detecta tu chat_id tras escribirle al bot."

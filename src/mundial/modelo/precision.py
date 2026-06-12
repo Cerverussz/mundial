@@ -1,6 +1,7 @@
-"""Precisión de las predicciones: Brier y RPS, modelo vs mercado vs blend."""
+"""Precisión de las predicciones: Brier, RPS y log-loss, modelo vs mercado vs blend."""
 from __future__ import annotations
 
+import math
 import sqlite3
 
 ORDEN = ("local", "empate", "visitante")
@@ -58,7 +59,8 @@ def evaluar(conexion: sqlite3.Connection) -> dict:
         for nombre, p in variantes.items():
             if None in p:
                 continue
-            metricas[nombre] = {"brier": brier(p, resultado), "rps": rps(p, resultado)}
+            metricas[nombre] = {"brier": brier(p, resultado), "rps": rps(p, resultado),
+                                "logloss": -math.log(max(p[resultado], 1e-12))}
             agregados[nombre].append(metricas[nombre])
         partidos.append(
             {
@@ -81,6 +83,7 @@ def evaluar(conexion: sqlite3.Connection) -> dict:
         informe[nombre] = {
             "brier": sum(v["brier"] for v in valores) / len(valores) if valores else None,
             "rps": sum(v["rps"] for v in valores) / len(valores) if valores else None,
+            "logloss": sum(v["logloss"] for v in valores) / len(valores) if valores else None,
             "n": len(valores),
         }
     return informe

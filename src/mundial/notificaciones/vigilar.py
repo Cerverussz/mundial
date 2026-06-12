@@ -24,7 +24,7 @@ def _guardar_estado(ruta: Path, estado: dict) -> None:
     ruta.write_text(json.dumps(estado, indent=1) + "\n", encoding="utf-8")
 
 
-def _mensaje_resultado(partido, evaluado, informe) -> str:
+def _mensaje_resultado(partido, evaluado, informe, resumen_ledger=None) -> str:
     encabezado = (
         f"🏁 <b>Final: {partido['local']} {partido['goles_local']}-"
         f"{partido['goles_visitante']} {partido['visitante']}</b>"
@@ -56,6 +56,14 @@ def _mensaje_resultado(partido, evaluado, informe) -> str:
             )
             acumulado += f" ({veredicto}: {informe['mercado']['rps']:.3f})"
     lineas.append(acumulado)
+    if resumen_ledger and resumen_ledger.get("n"):
+        linea = (
+            f"💰 Papel: {resumen_ledger['n']} apuestas, "
+            f"PnL flat {resumen_ledger['pnl_flat']:+.2f}u"
+        )
+        if resumen_ledger.get("clv_medio") is not None:
+            linea += f", CLV medio {resumen_ledger['clv_medio'] * 100:+.1f}%"
+        lineas.append(linea)
     return "\n".join(lineas)
 
 
@@ -69,7 +77,7 @@ def vigilar(
     dir_exportacion=None,
 ) -> list[str]:
     """Envía análisis pre-partido (≤2.5 h antes) y resultados post-partido, sin duplicar."""
-    from mundial.modelo import precision, prediccion
+    from mundial.modelo import ledger, precision, prediccion
 
     ahora = ahora or datetime.now(timezone.utc)
     ruta_estado = ruta_estado or RUTA_ESTADO
@@ -99,12 +107,23 @@ def vigilar(
             cliente.enviar(chat_id, texto)
             estado["pre"].append(partido["id"])
             registro.append(f"análisis enviado: {partido['local']} vs {partido['visitante']}")
+            p_propias = dict(resultado.p_final)
+            p_propias["over@2.5"] = resultado.mercados["over_under_25"]["p_over"]
+            p_propias["under@2.5"] = resultado.mercados["over_under_25"]["p_under"]
+            p_propias["yes"] = resultado.mercados["btts"]["p_si"]
+            p_propias["no"] = 1.0 - resultado.mercados["btts"]["p_si"]
+            n_apuestas = ledger.abrir_apuestas(
+                conexion, partido["id"], resultado.valor_flags, p_propias, ahora.isoformat())
+            if n_apuestas:
+                registro.append(f"apuestas papel abiertas: {n_apuestas}")
         except Exception as error:
             registro.append(
                 f"[ADVERTENCIA] sin análisis para {partido['local']} vs "
                 f"{partido['visitante']}: {error}"
             )
 
+    ledger.liquidar_pendientes(conexion)
+    resumen_ledger = ledger.resumen(conexion)
     informe = precision.evaluar(conexion)
     evaluados = {p["partido_id"]: p for p in informe["partidos"]}
     terminados = conexion.execute(
@@ -115,7 +134,8 @@ def vigilar(
         if partido["id"] in estado["post"]:
             continue
         cliente.enviar(
-            chat_id, _mensaje_resultado(partido, evaluados.get(partido["id"]), informe)
+            chat_id,
+            _mensaje_resultado(partido, evaluados.get(partido["id"]), informe, resumen_ledger),
         )
         estado["post"].append(partido["id"])
         registro.append(
