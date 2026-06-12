@@ -44,3 +44,27 @@ def test_consenso_mediana_resiste_casa_loca():
     assert n_casas == 3  # excluye la casa sintética "consensus"
     assert sum(p.values()) == pytest.approx(1.0, abs=1e-6)
     assert p["local"] > 0.55  # la mediana ignora a la casa rara
+
+
+def test_consenso_generico_dos_salidas():
+    filas = [("pinnacle", {"over@2.5": 1.85, "under@2.5": 2.05}),
+             ("bet365", {"over@2.5": 1.83, "under@2.5": 2.03})]
+    p, n = mercado.consenso_generico(filas)
+    assert n == 2
+    assert sum(p.values()) == pytest.approx(1.0)
+    assert p["over@2.5"] > 0.5
+
+
+def test_cuotas_consenso_mercado(tmp_path):
+    from mundial.persistencia import bd, esquema
+    conexion = bd.conectar(tmp_path / "m.db")
+    esquema.crear(conexion)
+    for casa, over, under in [("pinnacle", 1.85, 2.05), ("bet365", 1.83, 2.03)]:
+        for seleccion, cuota in [("over@2.5", over), ("under@2.5", under)]:
+            conexion.execute(
+                "INSERT INTO cuotas_mercado VALUES (1, '2026-06-12T10:00:00+00:00', 'bsd', ?, 'over_under_25', ?, ?)",
+                (casa, seleccion, cuota))
+    conexion.commit()
+    p, n, capturado = mercado.cuotas_consenso_mercado(conexion, 1, "over_under_25")
+    assert n == 2 and capturado.startswith("2026-06-12")
+    assert p["over@2.5"] + p["under@2.5"] == pytest.approx(1.0)
