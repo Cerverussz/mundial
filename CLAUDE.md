@@ -48,7 +48,9 @@ uv run mundial actualizar  # sync stadiums, 49k historical results, WC fixtures,
 uv run mundial ratings     # fit Dixon-Coles on last 10y, store ratings, print top 10
 uv run mundial predecir mex-rsa   # predict a match (TLA pair or name substrings)
 uv run mundial hoy / jornada 1    # predict today's matches / a group-stage matchday
-uv run mundial precision   # Brier/RPS: modelo vs mercado vs blend (needs finished matches)
+uv run mundial ledger      # paper-trading: PnL flat, yield, CLV medio
+uv run mundial minar       # mine WC patterns (BH q=0.10) → data/candidatos.json (no activa)
+uv run mundial precision   # Brier/RPS/log-loss: modelo vs mercado vs blend (needs finished matches)
 uv run mundial fuentes     # source freshness, Odds API credits, DB counts
 uv run streamlit run src/mundial/dashboard/app.py   # 5-page dashboard
 uv run mundial telegram    # send today's digest to Telegram (--configurar to detect chat_id)
@@ -89,5 +91,14 @@ CI: `.github/workflows/snapshot.yml`, dual cron (`0 4-14/2 * * *` + `*/30 0-3,15
 - **F4 DONE (2026-06-11):** snapshot captures lineups+absences (cron archives injury history in git); plantel + intangibles factors live. xG deferred (see Engine facts).
 - **F5 DONE (2026-06-11):** Brier/RPS evaluation (modelo vs mercado vs blend) + `precision` + `fuentes`.
 - **F3 DONE (2026-06-11):** Streamlit dashboard, 5 pages, helpers tested in `dashboard/datos.py`.
+- **M1 DONE (2026-06-12):** derived markets (O/U, BTTS, DNB/AH) priced+settled from one matrix (`modelo/mercados.py`); λ-space blend via market inversion (`modelo/inversion.py`) so every market is coherent in result AND total; 11 markets loaded from snapshots into `cuotas_mercado` (62k rows reprocessed); generic Shin consensus; multi-market value flags; paper-trading ledger with CLV vs pre-kickoff close (`modelo/ledger.py`, `mundial ledger`); log-loss added to precision.
+- **M2 DONE (2026-06-12):** WC 1930-2022 with reconstructed 90-min scores (`resultados_wc`, datahub — fixes the ET-inflated KO draw rate); confederations static; BH-corrected mining engine (`analisis/mineria.py`, `mundial minar`); pre-registered pattern engine with git-commit validation + declarative filter + price condition (`notificaciones/patrones.py`, `data/patrones.json`); pattern alerts + pattern paper-bets in vigilar; post-match xG/shots loader (BSD `/stats/`) into `xg`/`tiros` + dashboard xG metric. **Mining finding: 0 patterns survive BH q=0.10 on WC-only data** — third-place over-2.5 (73%, n=15) looks real but n<30; "matchday-3 goals" and "KO low-scoring" do NOT beat same-era baseline. `data/patrones.json` stays empty until a pattern passes our own gate; market-bias patterns (KO-draw underpricing) await odds-history for backtest.
 
-**Maintenance loop during the tournament:** after each matchday run `mundial actualizar && mundial ratings` (results refresh the fit), then `mundial precision` to watch whether the model beats the market benchmark. Open TODOs: xG loader once a finished-match stats response can be inspected; player-importance via caps; optional GBM/SHAP layer; optional Streamlit Community Cloud publish.
+## Engine facts (M1-M2)
+
+- `mercados.py`: AH/totals from the score matrix with push + quarter-line half-win/half-loss; settlement returns `(estado, retorno_por_unidad)`; DNB = AH 0; `MAX_GOLES` raised 8→10. Tests pin obvious cases (h=-0.5 ≡ P(D≥1)).
+- λ-blend: invert (λ_mkt, μ_mkt) by 2D Newton from de-vigged DNB + Over 2.5; blend in λ-space; matrix still rescaled to blended 1X2 (contract intact). Fallback to 1X2 rescale when those 2-way markets are absent (`origen_matriz` declares which). BSD always ships 1X2 with the 2-way markets, so multi-market flags live inside the `if p_mercado:` block.
+- Ledger: flat 1u (primary) + ¼-Kelly (learning); opens only on SUSTAINED flags in markets with real odds (AH excluded — no free odds); CLV = taken_odds × close_devig_prob − 1; yield needs n huge for significance, CLV is the tournament metric. `liquidar_pendientes` settles in vigilar post-match.
+- Patterns: `data/patrones.json` entries need `registrado_en_commit` to predate the match (git `%cI` check) or they're rejected; alert fires only if filter matches AND best de-vigged price ≤ `umbral_prob_implicita`; pattern bets get `origen=patron:<id>` (separate ledger stream). `minar` writes `data/candidatos.json` (gitignored, regenerated).
+
+**Maintenance loop during the tournament:** after each matchday run `mundial actualizar && mundial ratings`, then `mundial precision` + `mundial ledger` (is CLV>0?). Re-run `mundial minar` after group stage with more 2026 out-of-sample data. Open TODOs: M3 (GBM+SHAP) and M4 (blend-weight calibration, AH probes, confirmed-XI alerts, checkpoint) per `docs/superpowers/plans/2026-06-12-plan-m3-m4-gbm-afinacion.md`.

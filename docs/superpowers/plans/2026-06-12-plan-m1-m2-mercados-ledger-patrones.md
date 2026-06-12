@@ -22,7 +22,7 @@
 
 **Files:** Modify `src/mundial/persistencia/esquema.py`; Test `tests/test_persistencia.py` (extend).
 
-- [ ] Step 1: extend tests:
+- [x] Step 1: extend tests:
 
 ```python
 def test_esquema_v3_tablas_y_migracion(tmp_path):
@@ -37,8 +37,8 @@ def test_esquema_v3_tablas_y_migracion(tmp_path):
     esquema.crear(conexion)  # idempotente también con la migración
 ```
 
-- [ ] Step 2: run `uv run pytest tests/test_persistencia.py -v` → FAIL (tablas faltantes).
-- [ ] Step 3: append to `DDL` in `esquema.py`:
+- [x] Step 2: run `uv run pytest tests/test_persistencia.py -v` → FAIL (tablas faltantes).
+- [x] Step 3: append to `DDL` in `esquema.py`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS cuotas_mercado(
@@ -116,14 +116,14 @@ def crear(conexion: sqlite3.Connection) -> None:
 
 (`PRAGMA table_info` rows come through the `sqlite3.Row` factory, so `f["name"]` works.)
 
-- [ ] Step 4: `uv run pytest tests/test_persistencia.py -v` → PASS.
-- [ ] Step 5: `git add -A src tests && git commit -m "feat: schema v3 — market odds, paper bets, xG, WC90, config"`
+- [x] Step 4: `uv run pytest tests/test_persistencia.py -v` → PASS.
+- [x] Step 5: `git add -A src tests && git commit -m "feat: schema v3 — market odds, paper bets, xG, WC90, config"`
 
 ### Task 2: `modelo/mercados.py` — pricing y liquidación
 
 **Files:** Create `src/mundial/modelo/mercados.py`; Test `tests/test_mercados_derivados.py`.
 
-- [ ] Step 1: failing tests (the math core — synthetic matrices with obvious answers):
+- [x] Step 1: failing tests (the math core — synthetic matrices with obvious answers):
 
 ```python
 import numpy as np
@@ -219,8 +219,8 @@ def test_liquidar_2way():
     assert mercados.liquidar_2way(False, 2.1) == ("perdida", -1.0)
 ```
 
-- [ ] Step 2: run → FAIL (módulo no existe).
-- [ ] Step 3: implement `src/mundial/modelo/mercados.py`:
+- [x] Step 2: run → FAIL (módulo no existe).
+- [x] Step 3: implement `src/mundial/modelo/mercados.py`:
 
 ```python
 """Precios justos y liquidación de mercados derivados de la matriz de marcadores."""
@@ -397,13 +397,13 @@ def liquidar_2way(gano: bool, cuota: float) -> tuple[str, float]:
 
 Note for the implementer: in `resultado_ah` delete the dead `if entera is a: pass` block — keep only the `p_push`-based selection of the whole line (the leg with `p_push > 0` is the integer one; if both have push 0 — impossible for a true quarter line — fall back to `a`).
 
-- [ ] Step 4: run → PASS. Step 5: commit `feat: derived-market pricing and settlement from score matrix`.
+- [x] Step 4: run → PASS. Step 5: commit `feat: derived-market pricing and settlement from score matrix`.
 
 ### Task 3: `MAX_GOLES` 8 → 10
 
 **Files:** Modify `src/mundial/modelo/prediccion.py` (line `MAX_GOLES = 8`); Test `tests/test_prediccion.py`.
 
-- [ ] Step 1: change `MAX_GOLES = 8` → `MAX_GOLES = 10`. Add test:
+- [x] Step 1: change `MAX_GOLES = 8` → `MAX_GOLES = 10`. Add test:
 
 ```python
 def test_matriz_11x11_normalizada():
@@ -412,13 +412,13 @@ def test_matriz_11x11_normalizada():
     assert matriz.sum() == pytest.approx(1.0)
 ```
 
-- [ ] Step 2: `uv run pytest -q` → all pass (existing tests don't pin the shape). Commit `feat: extend score matrix to 10 goals`.
+- [x] Step 2: `uv run pytest -q` → all pass (existing tests don't pin the shape). Commit `feat: extend score matrix to 10 goals`.
 
 ### Task 4: cargar mercados desde snapshots
 
 **Files:** Modify `src/mundial/ingesta/cargar_cuotas.py`; Test `tests/test_cargar_cuotas.py` (extend).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 def test_carga_mercados_desde_snapshot(tmp_path):
@@ -441,7 +441,7 @@ def test_carga_mercados_desde_snapshot(tmp_path):
 
 (If `tests/fixtures/bsd_comparison.json` lacks non-1x2 markets — it was captured day 1 — refresh it once: `set -a; source .env; set +a && curl -sS "https://sports.bzzoiro.com/api/v2/events/8297/odds/comparison/" -H "Authorization: Token $BSD_TOKEN" -o tests/fixtures/bsd_comparison.json` using any upcoming event id from `data/local`, then fix the team/date literals in `tests/test_cargar_cuotas.py::preparar_bd` and `tests/test_bsd.py::test_comparacion_cuotas` to match the refreshed fixture.)
 
-- [ ] Step 2: implement in `cargar_cuotas.py`:
+- [x] Step 2: implement in `cargar_cuotas.py`:
 
 ```python
 MERCADOS_CAPTURADOS = (
@@ -501,13 +501,13 @@ def cargar_mercados(conexion: sqlite3.Connection, base: Path | None = None) -> i
 
 and call it from `actualizar.sincronizar` right after `cargar_nuevos` (message `f"cuotas de mercados nuevas: {n}"`).
 
-- [ ] Step 3: tests pass → live run `uv run mundial actualizar` (expect tens of thousands of rows from the ~40 accumulated snapshots — they reprocess once). Commit `feat: multi-market odds loader from snapshots`.
+- [x] Step 3: tests pass → live run `uv run mundial actualizar` (expect tens of thousands of rows from the ~40 accumulated snapshots — they reprocess once). Commit `feat: multi-market odds loader from snapshots`.
 
 ### Task 5: consenso por mercado
 
 **Files:** Modify `src/mundial/factores/mercado.py`; Test `tests/test_mercado.py` (extend).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 def test_consenso_generico_dos_salidas():
@@ -534,7 +534,7 @@ def test_cuotas_consenso_mercado(tmp_path):
     assert p["over@2.5"] + p["under@2.5"] == pytest.approx(1.0)
 ```
 
-- [ ] Step 2: implement in `factores/mercado.py` (reuses `quitar_margen_shin`, which is generic over dict keys):
+- [x] Step 2: implement in `factores/mercado.py` (reuses `quitar_margen_shin`, which is generic over dict keys):
 
 ```python
 def consenso_generico(filas: list[tuple[str, dict[str, float]]]) -> tuple[dict, int]:
@@ -576,13 +576,13 @@ def cuotas_consenso_mercado(
     return p, n, max(f["capturado_en"] for f in filas)
 ```
 
-- [ ] Step 3: tests pass → commit `feat: generic Shin consensus for 2-way and n-way markets`.
+- [x] Step 3: tests pass → commit `feat: generic Shin consensus for 2-way and n-way markets`.
 
 ### Task 6: inversión de λ del mercado
 
 **Files:** Create `src/mundial/modelo/inversion.py`; Test `tests/test_inversion.py`.
 
-- [ ] Step 1: failing round-trip test:
+- [x] Step 1: failing round-trip test:
 
 ```python
 import pytest
@@ -605,7 +605,7 @@ def test_inversion_sin_convergencia_devuelve_none():
     assert inversion.invertir_lambdas(0.999, 0.001, -0.06) is None
 ```
 
-- [ ] Step 2: implement `inversion.py` (Newton 2D con jacobiano numérico, acotado):
+- [x] Step 2: implement `inversion.py` (Newton 2D con jacobiano numérico, acotado):
 
 ```python
 """Inversión de las λ implícitas del mercado desde DNB y Over 2.5 devigados."""
@@ -651,13 +651,13 @@ def invertir_lambdas(
     return None
 ```
 
-- [ ] Step 3: tests pass → commit `feat: market lambda inversion via 2D Newton`.
+- [x] Step 3: tests pass → commit `feat: market lambda inversion via 2D Newton`.
 
 ### Task 7: blend en espacio λ + precios de mercados en la predicción
 
 **Files:** Modify `src/mundial/modelo/prediccion.py`; Test `tests/test_prediccion.py` (extend).
 
-- [ ] Step 1: failing test (seed `cuotas_mercado` in `preparar_bd_completa` with DNB + O/U 2.5 + BTTS rows for two books — same pattern as Task 5's test — then):
+- [x] Step 1: failing test (seed `cuotas_mercado` in `preparar_bd_completa` with DNB + O/U 2.5 + BTTS rows for two books — same pattern as Task 5's test — then):
 
 ```python
 def test_predecir_blend_lambda_y_mercados(tmp_path):
@@ -682,7 +682,7 @@ def test_predecir_sin_mercados_2way_usa_fallback(tmp_path):
     assert resultado.mercados["origen_matriz"] == "reescalado_1x2"
 ```
 
-- [ ] Step 2: implement in `predecir` (after `p_mercado` is computed, replacing the current single `reescalar_matriz` block):
+- [x] Step 2: implement in `predecir` (after `p_mercado` is computed, replacing the current single `reescalar_matriz` block):
 
 ```python
     # Blend en espacio lambda cuando el mercado da DNB y O/U 2.5; si no, fallback 1X2.
@@ -727,13 +727,13 @@ def test_predecir_sin_mercados_2way_usa_fallback(tmp_path):
 
 with imports `from mundial.modelo import inversion, mercados` at top, `mercados=precios` added to the `Prediccion` dataclass (field `mercados: dict`), and `mercados_json` persisted (add `"mercados_json"` to `COLUMNAS_PREDICCION` and `json.dumps(precios)` to the values tuple — `cargar_exportadas` inherits it automatically; old JSONL lines without the key fail the named-param insert, so in `cargar_exportadas` add `fila.setdefault("mercados_json", None)` after `json.loads(linea)`).
 
-- [ ] Step 3: all tests pass (existing prediction tests unaffected: no 2-way rows seeded → fallback path). Commit `feat: lambda-space market blend and derived market prices in predictions`.
+- [x] Step 3: all tests pass (existing prediction tests unaffected: no 2-way rows seeded → fallback path). Commit `feat: lambda-space market blend and derived market prices in predictions`.
 
 ### Task 8: value flags multi-mercado
 
 **Files:** Modify `src/mundial/modelo/prediccion.py`; Test `tests/test_prediccion.py` (extend).
 
-- [ ] Step 1: failing test:
+- [x] Step 1: failing test:
 
 ```python
 def test_flags_incluyen_mercados_2way(tmp_path):
@@ -742,7 +742,7 @@ def test_flags_incluyen_mercados_2way(tmp_path):
     assert all({"mercado", "seleccion", "margen", "sostenida"} <= set(f) for f in resultado.valor_flags)
 ```
 
-- [ ] Step 2: implement — generalize the flag loop:
+- [x] Step 2: implement — generalize the flag loop:
 
 ```python
 UMBRALES_VALOR = {"1x2": 0.05, "over_under_25": 0.04, "btts": 0.04, "draw_no_bet": 0.04}
@@ -779,13 +779,13 @@ def _flags_mercado(conexion, partido_id, mercado_clave, p_propias, ahora):
 
 (CLI/Telegram printers read `flag["resultado"]` — kept populated — so they keep working; extend the printed label with `flag.get("mercado")`.)
 
-- [ ] Step 3: tests pass → commit `feat: value flags across derived markets`.
+- [x] Step 3: tests pass → commit `feat: value flags across derived markets`.
 
 ### Task 9: ledger de apuestas simuladas con CLV
 
 **Files:** Create `src/mundial/modelo/ledger.py`; Test `tests/test_ledger.py`.
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 import pytest
@@ -845,7 +845,7 @@ def test_no_abre_sin_cuota_real(tmp_path):
     assert ledger.abrir_apuestas(conexion, 1, [flag], {"yes": 0.6}, "2026-06-13T17:30:00+00:00") == 0
 ```
 
-- [ ] Step 2: implement `ledger.py`:
+- [x] Step 2: implement `ledger.py`:
 
 ```python
 """Ledger de apuestas simuladas: apertura por flags sostenidos, liquidación y CLV."""
@@ -975,13 +975,13 @@ def resumen(conexion) -> dict:
 
 (Nota CLV: el `hasta=fecha_kickoff` reutiliza el GROUP BY con MAX(capturado_en) — el cierre es el último snapshot pre-kickoff; Pinnacle queda dentro de la mediana de consenso. Si se quiere Pinnacle-only, la mediana ya degrada bien cuando falta.)
 
-- [ ] Step 3: tests pass → commit `feat: paper-trading ledger with CLV vs pre-kickoff close`.
+- [x] Step 3: tests pass → commit `feat: paper-trading ledger with CLV vs pre-kickoff close`.
 
 ### Task 10: cableado — vigilar, CLI `ledger`, log-loss en precision
 
 **Files:** Modify `src/mundial/notificaciones/vigilar.py`, `src/mundial/cli.py`, `src/mundial/modelo/precision.py`; Tests `tests/test_vigilar.py`, `tests/test_precision.py` (extend).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 # test_vigilar.py — el pre-partido abre apuestas papel si hay flags sostenidos,
@@ -1000,7 +1000,7 @@ def test_logloss_en_evaluar(tmp_path):
     assert informe["blend"]["logloss"] == pytest.approx(-math.log(0.73), rel=1e-6)
 ```
 
-- [ ] Step 2: implement:
+- [x] Step 2: implement:
   - `precision.py`: in the variant loop add `"logloss": -math.log(max(p[resultado], 1e-12))` per match and aggregate mean alongside brier/rps (`import math`).
   - `vigilar.py` PRE block: after `prediccion.predecir(...)` succeeds, build `p_propias` from the result (`{"local":..., "empate":..., "visitante":...}` plus the 2-way dicts used in Task 8) and call `ledger.abrir_apuestas(conexion, partido["id"], resultado.valor_flags, p_propias, ahora.isoformat())`; append count to registro. POST block: call `ledger.liquidar_pendientes(conexion)` once before the loop; in `_mensaje_resultado` append a ledger line when `resumen["n"] > 0`: `f"💰 Papel: {r['n']} apuestas, PnL flat {r['pnl_flat']:+.2f}u, CLV medio {r['clv_medio']*100:+.1f}%"` (omit CLV when None).
   - `cli.py`: new command `ledger`:
@@ -1031,7 +1031,7 @@ def ledger() -> None:
         )
 ```
 
-- [ ] Step 3: full suite passes → live: `uv run mundial actualizar && uv run mundial hoy && uv run mundial ledger`. Commit `feat: paper bets wired into watcher; ledger CLI; log-loss metric`. **M1 done.**
+- [x] Step 3: full suite passes → live: `uv run mundial actualizar && uv run mundial hoy && uv run mundial ledger`. Commit `feat: paper bets wired into watcher; ledger CLI; log-loss metric`. **M1 done.**
 
 ---
 
@@ -1041,7 +1041,7 @@ def ledger() -> None:
 
 **Files:** Create `src/mundial/ingesta/mundiales.py`; Test `tests/test_mundiales.py`.
 
-- [ ] Step 1: failing tests (tiny inline CSVs mirroring the probed datahub columns):
+- [x] Step 1: failing tests (tiny inline CSVs mirroring the probed datahub columns):
 
 ```python
 from mundial.ingesta import mundiales
@@ -1079,7 +1079,7 @@ def test_carga_reconstruye_score_90(tmp_path):
     assert grupo["es_grupos"] == 1
 ```
 
-- [ ] Step 2: implement `mundiales.py`:
+- [x] Step 2: implement `mundiales.py`:
 
 ```python
 """Mundiales 1930-2022 con marcador a 90' (datahub matches.csv + goals.csv)."""
@@ -1146,13 +1146,13 @@ def cargar(conexion: sqlite3.Connection, ruta_matches: Path, ruta_goals: Path) -
     return len(filas)
 ```
 
-- [ ] Step 3: tests pass → wire into `actualizar.sincronizar` (try/except with ADVERTENCIA, download to `DIR_LOCAL`) → live run expects 1,248 filas → commit `feat: World Cup 90-minute results from datahub`.
+- [x] Step 3: tests pass → wire into `actualizar.sincronizar` (try/except with ADVERTENCIA, download to `DIR_LOCAL`) → live run expects 1,248 filas → commit `feat: World Cup 90-minute results from datahub`.
 
 ### Task 12: confederaciones
 
 **Files:** Create `data/static/confederaciones.csv` + `scripts/generar_confederaciones.py` is NOT needed — write the CSV directly; Modify `src/mundial/ingesta/estaticos.py`; Test `tests/test_estaticos.py` (extend).
 
-- [ ] Step 1: write `data/static/confederaciones.csv` with header `equipo,confederacion` and one row per team, canonical martj42 names. Content (132 teams):
+- [x] Step 1: write `data/static/confederaciones.csv` with header `equipo,confederacion` and one row per team, canonical martj42 names. Content (132 teams):
 
 ```csv
 equipo,confederacion
@@ -1295,14 +1295,14 @@ Solomon Islands,OFC
 Tahiti,OFC
 ```
 
-- [ ] Step 2: failing test + loader `estaticos.cargar_confederaciones(conexion) -> int` (UPDATE equipos SET confederacion + INSERT OR IGNORE for teams not yet in equipos), called from `sincronizar`; live check: `mundial actualizar` then `SELECT COUNT(*) FROM equipos WHERE confederacion IS NULL AND nombre IN (SELECT local FROM partidos)` → 0 (the 48 WC teams all covered).
-- [ ] Step 3: commit `feat: confederations static data`.
+- [x] Step 2: failing test + loader `estaticos.cargar_confederaciones(conexion) -> int` (UPDATE equipos SET confederacion + INSERT OR IGNORE for teams not yet in equipos), called from `sincronizar`; live check: `mundial actualizar` then `SELECT COUNT(*) FROM equipos WHERE confederacion IS NULL AND nombre IN (SELECT local FROM partidos)` → 0 (the 48 WC teams all covered).
+- [x] Step 3: commit `feat: confederations static data`.
 
 ### Task 13: motor de minería con BH
 
 **Files:** Create `src/mundial/analisis/__init__.py` (empty), `src/mundial/analisis/mineria.py`; Test `tests/test_mineria.py`.
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 import numpy as np
@@ -1352,7 +1352,7 @@ def test_familia_goles_por_fase(tmp_path):
     assert sobre_ko and sobre_ko[0].exitos == 60 and sobre_ko[0].n == 60
 ```
 
-- [ ] Step 2: implement `mineria.py`:
+- [x] Step 2: implement `mineria.py`:
 
 ```python
 """Minería de patrones con control de multiplicidad (BH) sobre datos históricos propios."""
@@ -1471,13 +1471,13 @@ def minar(conexion: sqlite3.Connection, anio_desde: int = 1994) -> list[Candidat
 
 (El test de la Familia 1 usa la fase plantada; la Familia 4 usa una aproximación por orden — documentada — porque resultados_wc no trae jornada explícita.)
 
-- [ ] Step 3: tests pass → commit `feat: pattern mining engine with Benjamini-Hochberg control`.
+- [x] Step 3: tests pass → commit `feat: pattern mining engine with Benjamini-Hochberg control`.
 
 ### Task 14: CLI `minar`
 
 **Files:** Modify `src/mundial/cli.py`; Test: covered by Task 13 (CLI is a thin printer).
 
-- [ ] Step 1: add command:
+- [x] Step 1: add command:
 
 ```python
 @app.command()
@@ -1507,13 +1507,13 @@ def minar(anio_desde: int = typer.Option(1994, help="Inicio de la era a minar"))
                   f"data/patrones.json (Task 15).")
 ```
 
-- [ ] Step 2: live run `uv run mundial minar` → inspect table sanity (e.g. eliminacion empates ~0.30 with score90, NOT 0.21). Commit `feat: minar command writing pattern candidates`.
+- [x] Step 2: live run `uv run mundial minar` → inspect table sanity (e.g. eliminacion empates ~0.30 with score90, NOT 0.21). Commit `feat: minar command writing pattern candidates`.
 
 ### Task 15: motor de patrones pre-registrados
 
 **Files:** Create `src/mundial/notificaciones/patrones.py`, `data/patrones.json` (empty list `[]` initially); Test `tests/test_patrones.py`.
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 import json
@@ -1565,7 +1565,7 @@ def test_validacion_preregistro_rechaza_no_commiteado(tmp_path):
     assert activos == []  # commit 'PENDIENTE' no existe → rechazado
 ```
 
-- [ ] Step 2: implement `patrones.py`:
+- [x] Step 2: implement `patrones.py`:
 
 ```python
 """Patrones pre-registrados: carga validada por git, filtro declarativo, condición de precio."""
@@ -1698,13 +1698,13 @@ def _dead_rubber(conexion, partido, equipo: str) -> bool:
     return len(posiciones) == 1  # mismo destino en TODOS los escenarios
 ```
 
-- [ ] Step 3: tests pass → commit `feat: pre-registered pattern engine with git validation`.
+- [x] Step 3: tests pass → commit `feat: pre-registered pattern engine with git validation`.
 
 ### Task 16: alertas de patrones en vigilar + apuestas papel por patrón
 
 **Files:** Modify `src/mundial/notificaciones/vigilar.py`; Test `tests/test_vigilar.py` (extend).
 
-- [ ] Step 1: failing test (seed `data/patrones.json` path param with a committed-hash patron — in the test use `repo=None` bypass: add `patrones_validados` injectable param to `vigilar()` so tests pass a list directly):
+- [x] Step 1: failing test (seed `data/patrones.json` path param with a committed-hash patron — in the test use `repo=None` bypass: add `patrones_validados` injectable param to `vigilar()` so tests pass a list directly):
 
 ```python
 def test_vigilar_alerta_patron(tmp_path):
@@ -1720,7 +1720,7 @@ def test_vigilar_alerta_patron(tmp_path):
     assert apuesta is not None
 ```
 
-- [ ] Step 2: implement in `vigilar.py` PRE block (after the prediction message is built):
+- [x] Step 2: implement in `vigilar.py` PRE block (after the prediction message is built):
 
 ```python
         patrones_activos = (
@@ -1755,13 +1755,13 @@ def test_vigilar_alerta_patron(tmp_path):
 
 (imports: `from mundial.factores import mercado`, `from mundial.modelo import ledger`, `from mundial.notificaciones import patrones as patrones_mod`; `vigilar()` signature gains `patrones_validados: list | None = None`. Nota: para 1x2 el `lado` 'empate' coincide con las claves de `cuotas_consenso`.)
 
-- [ ] Step 3: tests pass → commit `feat: pattern alerts with price condition and pattern paper bets`.
+- [x] Step 3: tests pass → commit `feat: pattern alerts with price condition and pattern paper bets`.
 
 ### Task 17: xG post-partido + primera tanda de patrones
 
 **Files:** Modify `src/mundial/ingesta/bsd.py`, `src/mundial/notificaciones/vigilar.py`, `src/mundial/dashboard/app.py`; Test `tests/test_bsd.py`, `tests/test_vigilar.py` (extend).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 # test_bsd.py
@@ -1786,7 +1786,7 @@ def test_vigilar_guarda_xg(tmp_path):
     assert conexion.execute("SELECT COUNT(*) c FROM tiros WHERE partido_id=11").fetchone()["c"] == 19
 ```
 
-- [ ] Step 2: implement:
+- [x] Step 2: implement:
   - `bsd.py`: `def estadisticas(self, evento_id)` → GET `/events/{evento_id}/stats/`.
   - `vigilar.py` POST block, before sending the result message:
 
@@ -1816,7 +1816,7 @@ def test_vigilar_guarda_xg(tmp_path):
 
   and append xG line to `_mensaje_resultado` when available (`f"xG: {xg_l:.2f} - {xg_v:.2f}"` — pass via informe lookup or re-query inside).
   - dashboard `pagina_partido`: query xg table and show `st.metric("xG", ...)` when present.
-- [ ] Step 3: tests pass → live: run `uv run mundial minar`, review `data/candidatos.json` WITH THE USER, hand-write the first `data/patrones.json` entries (the KO-draw rule from the spec uses our own mined numbers; commit, capture the commit hash, edit `registrado_en_commit`, commit again) → `git push`. **M2 done.** Update CLAUDE.md (commands `minar`, `ledger`; pattern workflow; xG tables) and mark this plan's checkboxes.
+- [x] Step 3: tests pass → live: run `uv run mundial minar`, review `data/candidatos.json` WITH THE USER, hand-write the first `data/patrones.json` entries (the KO-draw rule from the spec uses our own mined numbers; commit, capture the commit hash, edit `registrado_en_commit`, commit again) → `git push`. **M2 done.** Update CLAUDE.md (commands `minar`, `ledger`; pattern workflow; xG tables) and mark this plan's checkboxes.
 
 ## Self-review notes
 
