@@ -14,6 +14,12 @@ def test_matriz_suma_uno_y_rho_mueve_marcadores_bajos():
     assert matriz_con[1, 1] > matriz_sin[1, 1]
 
 
+def test_matriz_11x11_normalizada():
+    matriz = prediccion.matriz_marcadores(3.4, 2.8, rho=-0.06)
+    assert matriz.shape == (11, 11)
+    assert matriz.sum() == pytest.approx(1.0)
+
+
 def test_prob_1x2_consistente():
     matriz = prediccion.matriz_marcadores(2.0, 0.8, rho=-0.05)
     p_local, p_empate, p_visitante = prediccion.prob_1x2(matriz)

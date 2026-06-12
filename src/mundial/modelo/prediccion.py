@@ -17,7 +17,7 @@ from mundial.modelo import confianza as modulo_confianza
 from mundial.modelo import explicacion
 from mundial.modelo.dixon_coles import Ajuste
 
-MAX_GOLES = 8
+MAX_GOLES = 10
 PESO_MODELO = 0.4
 UMBRAL_VALOR = 0.05
 HORAS_VALOR_SOSTENIDO = 2.0
