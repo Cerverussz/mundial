@@ -58,6 +58,34 @@ def preparar_bd(tmp_path):
     return conexion
 
 
+PATRON_PRUEBA = {
+    "id": "test_empate_j1",
+    "familia": "test",
+    "hipotesis": "empate barato en jornada 1",
+    "filtro": {"jornada": 1},
+    "mercado_objetivo": "1x2",
+    "lado": "empate",
+    "efecto": {"tasa": 0.35, "baseline": 0.28, "lift": 0.07},
+    "n": 100, "p_adj_bh": 0.04, "ic95": [0.28, 0.42],
+    "registrado_en_commit": "HEAD",
+    "ventana_validez": ["2026-06-01", "2026-07-19"],
+    "umbral_prob_implicita": 0.30,
+    "estado": "en_papel",
+}
+
+
+def test_vigilar_alerta_patron(tmp_path):
+    conexion = preparar_bd(tmp_path)
+    telegram = TelegramFalso()
+    vigilar.vigilar(conexion, telegram, "42", ahora=AHORA, ruta_estado=tmp_path / "n.json",
+                    patrones_validados=[PATRON_PRUEBA])
+    pre = next(m for m in telegram.mensajes if "Arranca" in m)
+    assert "patrón pre-registrado" in pre.lower()
+    apuesta = conexion.execute(
+        "SELECT * FROM apuestas WHERE origen LIKE 'patron:%'").fetchone()
+    assert apuesta is not None
+
+
 def test_vigilar_abre_y_liquida_apuestas(tmp_path):
     conexion = preparar_bd(tmp_path)
     registro = vigilar.vigilar(

@@ -75,9 +75,12 @@ def vigilar(
     ruta_estado: Path | None = None,
     cliente_bsd=None,
     dir_exportacion=None,
+    patrones_validados=None,
 ) -> list[str]:
     """Envía análisis pre-partido (≤2.5 h antes) y resultados post-partido, sin duplicar."""
+    from mundial.factores import mercado
     from mundial.modelo import ledger, precision, prediccion
+    from mundial.notificaciones import patrones as patrones_mod
 
     ahora = ahora or datetime.now(timezone.utc)
     ruta_estado = ruta_estado or RUTA_ESTADO
@@ -104,6 +107,34 @@ def vigilar(
                 f"🔜 <b>Arranca en {horas:.1f} h</b> — {partido['fecha_utc'][11:16]} UTC\n\n"
                 + _bloque_prediccion(resultado)
             )
+            patrones_activos = (
+                patrones_validados if patrones_validados is not None
+                else patrones_mod.cargar_validados(fecha_partido=partido["fecha_utc"])
+            )
+            if patrones_activos:
+                contexto = patrones_mod.construir_contexto(conexion, partido["id"])
+                for patron in patrones_activos:
+                    if not patrones_mod.satisface(patron["filtro"], contexto):
+                        continue
+                    if patron["mercado_objetivo"] == "1x2":
+                        p_imp, _, _ = mercado.cuotas_consenso(conexion, partido["id"])
+                    else:
+                        p_imp, _, _ = mercado.cuotas_consenso_mercado(
+                            conexion, partido["id"], patron["mercado_objetivo"])
+                    if not patrones_mod.precio_cumple(patron, p_imp):
+                        continue
+                    texto += (
+                        f"\n\n⚠️ <b>Patrón pre-registrado</b>: {patron['hipotesis']} — "
+                        f"hist. {patron['efecto']['tasa'] * 100:.0f}% vs base "
+                        f"{patron['efecto']['baseline'] * 100:.0f}% (n={patron['n']}, "
+                        f"p_adj={patron['p_adj_bh']:.3f}). Apuesta de papel."
+                    )
+                    ledger.abrir_apuestas(
+                        conexion, partido["id"],
+                        [{"mercado": patron["mercado_objetivo"], "seleccion": patron["lado"],
+                          "margen": patron["efecto"]["lift"], "sostenida": True}],
+                        {patron["lado"]: patron["efecto"]["tasa"]},
+                        ahora.isoformat(), origen=f"patron:{patron['id']}")
             cliente.enviar(chat_id, texto)
             estado["pre"].append(partido["id"])
             registro.append(f"análisis enviado: {partido['local']} vs {partido['visitante']}")
