@@ -185,6 +185,40 @@ def cargar_exportadas(conexion: sqlite3.Connection, directorio=None) -> int:
     return insertadas
 
 
+def _gbm_tercera_senal(conexion, partido, p_modelo, p_mercado, ventaja):
+    """Si el GBM está activo y pasó la puerta, devuelve (p_final_pool, lineas_shap)."""
+    fila = conexion.execute(
+        "SELECT valor FROM config WHERE clave='gbm_activo'").fetchone()
+    if not fila or fila["valor"] != "1":
+        return None
+    try:
+        from mundial.config import DIR_LOCAL
+        from mundial.modelo import gbm as gbm_mod
+
+        modelo = gbm_mod.cargar(DIR_LOCAL / "gbm")
+        if modelo is None:
+            return None
+        neutral = 0 if ventaja else 1
+        x = gbm_mod.features_partido(
+            conexion, partido["local"], partido["visitante"],
+            partido["fecha_utc"][:10], neutral)
+        if x is None:
+            return None
+        p = gbm_mod.predecir_probas(modelo, x)[0]
+        p_gbm = {"local": float(p[0]), "empate": float(p[1]), "visitante": float(p[2])}
+        pesos_fila = conexion.execute(
+            "SELECT valor FROM config WHERE clave='pool_pesos'").fetchone()
+        pesos = [float(x) for x in pesos_fila["valor"].split(",")] if pesos_fila else [0.3, 0.6, 0.1]
+        distribuciones = [p_modelo, p_gbm] if not p_mercado else [p_modelo, p_mercado, p_gbm]
+        usar = (pesos[:1] + pesos[2:]) if not p_mercado else pesos
+        p_final = gbm_mod.pool_log_lineal(distribuciones, usar)
+        shap = gbm_mod.shap_partido(modelo, x[0])
+        lineas = [f"GBM: {nombre} {valor:+.2f}" for nombre, valor in shap]
+        return p_final, lineas
+    except Exception:
+        return None
+
+
 def _flags_mercado(conexion, partido_id, mercado_clave, p_propias, ahora):
     p_mkt, _, _ = mercado.cuotas_consenso_mercado(conexion, partido_id, mercado_clave)
     if not p_mkt:
@@ -317,6 +351,12 @@ def predecir(
     else:
         p_final = dict(p_modelo)
 
+    lineas_gbm: list[str] = []
+    senal_gbm = _gbm_tercera_senal(conexion, partido, p_modelo, p_mercado, ventaja)
+    if senal_gbm:
+        p_final, lineas_gbm = senal_gbm
+        matriz_final = reescalar_matriz(matriz_final, p_final)
+
     precios = {
         "origen_matriz": origen_matriz,
         "over_under_25": {
@@ -380,7 +420,7 @@ def predecir(
 
     top3 = marcadores_top(matriz_final, 3)
     marcador = (top3[0][0], top3[0][1])
-    lineas = explicacion.generar(factores, p_modelo, p_mercado, n_casas)
+    lineas = explicacion.generar(factores, p_modelo, p_mercado, n_casas) + lineas_gbm
 
     anterior = conexion.execute(
         """SELECT * FROM predicciones WHERE partido_id = ?

@@ -97,6 +97,47 @@ def construir_features(conexion, desde: str, hasta: str = "2099-01-01"):
     return np.array(X, dtype=float), np.array(y), fechas, NOMBRES_FEATURES, meta
 
 
+def features_partido(conexion, local: str, visitante: str, fecha: str,
+                     neutral: int, torneo: str = "FIFA World Cup") -> np.ndarray | None:
+    """Vector de features para UN partido futuro (mismo orden que construir_features)."""
+    rl = entrenar.rating_asof(conexion, local, fecha)
+    rv = entrenar.rating_asof(conexion, visitante, fecha)
+    if rl is None or rv is None:
+        return None
+    hist = conexion.execute(
+        """SELECT fecha, local, visitante, goles_local, goles_visitante
+           FROM resultados_historicos
+           WHERE (local IN (?, ?) OR visitante IN (?, ?)) AND fecha < ?
+           ORDER BY fecha""",
+        (local, visitante, local, visitante, fecha),
+    ).fetchall()
+    por_equipo: dict[str, list] = {}
+    for h in hist:
+        por_equipo.setdefault(h["local"], []).append(h)
+        por_equipo.setdefault(h["visitante"], []).append(h)
+    sl = _forma_y_descanso(por_equipo.get(local, []), local, fecha)
+    sv = _forma_y_descanso(por_equipo.get(visitante, []), visitante, fecha)
+    h2h = [h for h in por_equipo.get(local, [])
+           if {h["local"], h["visitante"]} == {local, visitante}][-5:]
+    balance = 0
+    for h in h2h:
+        d = h["goles_local"] - h["goles_visitante"]
+        balance += (1 if d > 0 else (-1 if d < 0 else 0)) * (1 if h["local"] == local else -1)
+    return np.array([[
+        rl["ataque"] - rv["ataque"], rl["defensa"] - rv["defensa"],
+        rl["ataque"] + rl["defensa"] + rv["ataque"] + rv["defensa"],
+        neutral,
+        int(any(t in torneo for t in TORNEOS_MAYORES)),
+        int("qualification" in torneo.lower()),
+        int(torneo == "Friendly"),
+        sl["descanso"], sv["descanso"], sl["descanso"] - sv["descanso"],
+        sl["forma5"], sv["forma5"], sl["forma5"] - sv["forma5"],
+        sl["favor5"], sv["favor5"], sl["contra5"], sv["contra5"],
+        sl["n365"], sv["n365"],
+        balance, int(fecha >= "2018-01-01"), int(fecha[5:7]),
+    ]], dtype=float)
+
+
 def _entrenar_binario(X, objetivo, monotonia):
     import lightgbm as lgb
 

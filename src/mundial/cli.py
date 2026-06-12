@@ -217,6 +217,33 @@ def vigilar() -> None:
 
 
 @app.command()
+def gbm() -> None:
+    """Entrena y evalúa la capa GBM con puerta walk-forward; la activa solo si pasa."""
+    from mundial.config import DIR_LOCAL
+    from mundial.modelo import entrenar as entrenar_mod
+    from mundial.modelo import gbm as gbm_mod
+
+    conexion = _conexion_lista()
+    consola.print("Materializando ratings as-of (anti-fuga)…")
+    entrenar_mod.ratings_asof(conexion)
+    consola.print("Walk-forward por ciclos de Mundial…")
+    informe = gbm_mod.walk_forward(conexion)
+    for b in informe["bloques"]:
+        marca = "✓" if b["rps_gbm"] < b["rps_dc"] else "✗"
+        consola.print(f"  {marca} test {b['test'][0][:4]}-{b['test'][1][:4]}: "
+                      f"RPS GBM {b['rps_gbm']:.4f} vs DC {b['rps_dc']:.4f} (n={b['n']})")
+    if informe["pasa_puerta"]:
+        consola.print("[green]PASA la puerta[/]: entrenando modelo final y activando en blend")
+        modelo = gbm_mod.entrenar_ordinal(conexion, "1996-01-01", "2026-06-10")
+        gbm_mod.guardar(modelo, DIR_LOCAL / "gbm")
+        conexion.execute("INSERT OR REPLACE INTO config VALUES ('gbm_activo', '1')")
+    else:
+        consola.print("[yellow]NO pasa la puerta[/]: queda documentado, no entra al blend")
+        conexion.execute("INSERT OR REPLACE INTO config VALUES ('gbm_activo', '0')")
+    conexion.commit()
+
+
+@app.command()
 def minar(anio_desde: int = typer.Option(1994, help="Inicio de la era a minar")) -> None:
     """Mina patrones históricos y escribe los candidatos (NO los activa)."""
     import json as json_lib
