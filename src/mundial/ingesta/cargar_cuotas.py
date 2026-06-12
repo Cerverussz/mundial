@@ -10,6 +10,10 @@ from mundial.ingesta import snapshots
 from mundial.ingesta.actualizar import canonico
 
 RESULTADO_BSD = {"HOME": "local", "DRAW": "empate", "AWAY": "visitante"}
+MERCADOS_CAPTURADOS = (
+    "over_under_15", "over_under_25", "over_under_35", "btts", "draw_no_bet",
+    "double_chance", "total_corners", "corners_1x2",
+)
 
 
 def _indice_partidos(conexion: sqlite3.Connection) -> dict:
@@ -125,5 +129,54 @@ def cargar_nuevos(conexion: sqlite3.Connection, base: Path | None = None) -> int
             (rel, datetime.now(timezone.utc).isoformat()),
         )
         total += len(cuotas)
+    conexion.commit()
+    return total
+
+
+def _filas_mercados_bsd(payload: dict, capturado_en: str, indice: dict) -> list:
+    filas = []
+    for comparacion in (payload.get("comparaciones") or {}).values():
+        llave = (
+            comparacion["event_date"][:10],
+            frozenset((canonico(comparacion["home_team"]), canonico(comparacion["away_team"]))),
+        )
+        partido_id = indice.get(llave)
+        if partido_id is None:
+            continue
+        for mercado, contenido in (comparacion.get("markets") or {}).items():
+            if mercado not in MERCADOS_CAPTURADOS:
+                continue
+            for seleccion, detalle in contenido.items():
+                for casa, datos in (detalle.get("bookmakers") or {}).items():
+                    cuota = datos.get("decimal_odds")
+                    if cuota and cuota > 1.0:
+                        filas.append(
+                            (partido_id, capturado_en, "bsd", casa, mercado, seleccion, cuota)
+                        )
+    return filas
+
+
+def cargar_mercados(conexion: sqlite3.Connection, base: Path | None = None) -> int:
+    """Segunda pasada sobre los snapshots: mercados más allá del 1X2 (registro propio)."""
+    base = base or DIR_SNAPSHOTS
+    cargados = {
+        f["ruta"] for f in conexion.execute("SELECT ruta FROM archivos_cargados_mercados")
+    }
+    indice = _indice_partidos(conexion)
+    total = 0
+    for ruta in sorted(base.glob("*/*-bsd.json.gz")):
+        rel = str(ruta.relative_to(base))
+        if rel in cargados:
+            continue
+        contenido = snapshots.leer_snapshot(ruta)
+        filas = _filas_mercados_bsd(contenido["payload"], contenido["capturado_en"], indice)
+        conexion.executemany(
+            "INSERT OR REPLACE INTO cuotas_mercado VALUES (?,?,?,?,?,?,?)", filas
+        )
+        conexion.execute(
+            "INSERT OR REPLACE INTO archivos_cargados_mercados VALUES (?,?)",
+            (rel, datetime.now(timezone.utc).isoformat()),
+        )
+        total += len(filas)
     conexion.commit()
     return total

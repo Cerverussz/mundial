@@ -46,6 +46,24 @@ def test_carga_es_incremental(tmp_path):
     assert cargar_cuotas.cargar_nuevos(conexion, base=tmp_path / "snaps") == 0
 
 
+def test_carga_mercados_desde_snapshot(tmp_path):
+    conexion = preparar_bd(tmp_path)
+    escribir_snapshot_bsd(tmp_path / "snaps")
+    cargar_cuotas.cargar_nuevos(conexion, base=tmp_path / "snaps")
+    n = cargar_cuotas.cargar_mercados(conexion, base=tmp_path / "snaps")
+    assert n > 50
+    fila = conexion.execute(
+        """SELECT * FROM cuotas_mercado WHERE partido_id=537327 AND mercado='over_under_25'
+           AND casa='pinnacle' AND seleccion='over@2.5'"""
+    ).fetchone()
+    assert fila is not None and fila["cuota"] > 1.0
+    selecciones_btts = {f["seleccion"] for f in conexion.execute(
+        "SELECT DISTINCT seleccion FROM cuotas_mercado WHERE mercado='btts'")}
+    assert selecciones_btts == {"yes", "no"}
+    # segunda corrida: idempotente
+    assert cargar_cuotas.cargar_mercados(conexion, base=tmp_path / "snaps") == 0
+
+
 def test_carga_odds_api(tmp_path):
     conexion = preparar_bd(tmp_path)
     eventos = json.loads((FIXTURES / "odds_api_h2h.json").read_text())

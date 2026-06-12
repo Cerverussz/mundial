@@ -144,6 +144,8 @@ def sincronizar(
 
     n_cuotas = cargar_cuotas.cargar_nuevos(conexion)
     mensajes.append(f"cuotas nuevas desde snapshots: {n_cuotas}")
+    n_mercados = cargar_cuotas.cargar_mercados(conexion)
+    mensajes.append(f"cuotas de mercados nuevas: {n_mercados}")
     n_predicciones = prediccion.cargar_exportadas(conexion)
     if n_predicciones:
         mensajes.append(f"predicciones importadas del repo: {n_predicciones}")
