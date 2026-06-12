@@ -243,12 +243,16 @@ def predecir(
     conexion: sqlite3.Connection,
     partido_id: int,
     ahora: datetime | None = None,
-    peso_modelo: float = PESO_MODELO,
+    peso_modelo: float | None = None,
     cliente_bsd=None,
     dir_exportacion=None,
 ) -> Prediccion:
     ahora = ahora or datetime.now(timezone.utc)
     referencia = ahora.date()
+    if peso_modelo is None:
+        fila_w = conexion.execute(
+            "SELECT valor FROM config WHERE clave='peso_modelo'").fetchone()
+        peso_modelo = float(fila_w["valor"]) if fila_w else PESO_MODELO
     partido = conexion.execute(
         "SELECT * FROM partidos WHERE id = ?", (partido_id,)
     ).fetchone()

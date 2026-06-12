@@ -217,6 +217,30 @@ def vigilar() -> None:
 
 
 @app.command()
+def calibrar(
+    aplicar: bool = typer.Option(False, "--aplicar", help="Guarda el w recomendado en config.")
+) -> None:
+    """Calibra el peso modelo/mercado por log-loss con shrinkage al prior 0.4."""
+    from mundial.modelo import calibracion
+
+    conexion = _conexion_lista()
+    r = calibracion.optimizar_w(conexion)
+    if r.get("n", 0) < 5:
+        consola.print(f"Muestra insuficiente ({r['n']} partidos); se mantiene w=0.4.")
+        return
+    consola.print(
+        f"n={r['n']} · w crudo {r['w_crudo']:.2f} · w recomendado [bold]{r['w_recomendado']:.3f}[/]\n"
+        f"log-loss lineal {r['logloss_lineal']:.4f} · geométrico {r['logloss_geometrico']:.4f} · "
+        f"mercado puro {r['logloss_mercado']:.4f}"
+    )
+    if aplicar:
+        conexion.execute("INSERT OR REPLACE INTO config VALUES ('peso_modelo', ?)",
+                         (str(r["w_recomendado"]),))
+        conexion.commit()
+        consola.print(f"[green]Aplicado[/]: config.peso_modelo = {r['w_recomendado']:.3f}")
+
+
+@app.command()
 def gbm() -> None:
     """Entrena y evalúa la capa GBM con puerta walk-forward; la activa solo si pasa."""
     from mundial.config import DIR_LOCAL
