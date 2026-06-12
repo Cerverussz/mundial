@@ -16,7 +16,7 @@
 
 **Files:** Modify `src/mundial/modelo/entrenar.py`; Test `tests/test_entrenar.py` (extend).
 
-- [ ] Step 1: failing test:
+- [x] Step 1: failing test:
 
 ```python
 def test_ratings_asof_sin_fuga(tmp_path):
@@ -49,7 +49,7 @@ def test_ratings_asof_sin_fuga(tmp_path):
     assert entrenar.rating_asof(conexion, "NUEVO", "2021-06-15") is None
 ```
 
-- [ ] Step 2: implement in `entrenar.py`:
+- [x] Step 2: implement in `entrenar.py`:
 
 ```python
 def ratings_asof(conexion: sqlite3.Connection, anios=range(1994, 2027),
@@ -97,13 +97,13 @@ def rating_asof(conexion: sqlite3.Connection, equipo: str, fecha: str) -> dict |
 
 (Los as-of usan fechas `YYYY-01-01`; el ajuste "vivo" de `entrenar_y_guardar` usa la fecha del día, así que `prediccion.cargar_ajuste` —que toma el MAX(fecha_ajuste)— seguirá prefiriendo el vivo durante el torneo. Para que el del torneo siempre gane, `cargar_ajuste` ya ordena por fecha DESC: 2026-06-xx > 2026-01-01 ✓. El filtro `LIKE '%-01-01'` en rating_asof evita que el ajuste vivo contamine los features históricos.)
 
-- [ ] Step 3: tests pass → live: `uv run python -c "from mundial.persistencia import bd, esquema; from mundial.modelo import entrenar; c=bd.conectar(); esquema.crear(c); print(entrenar.ratings_asof(c))"` (~30 refits × 0.4 s ≈ 15 s). Commit `feat: point-in-time ratings for leakage-free features`.
+- [x] Step 3: tests pass → live: `uv run python -c "from mundial.persistencia import bd, esquema; from mundial.modelo import entrenar; c=bd.conectar(); esquema.crear(c); print(entrenar.ratings_asof(c))"` (~30 refits × 0.4 s ≈ 15 s). Commit `feat: point-in-time ratings for leakage-free features`.
 
 ### Task 19: features + LightGBM ordinal + walk-forward
 
 **Files:** Create `src/mundial/modelo/gbm.py`; Modify `pyproject.toml` (`uv add lightgbm scikit-learn`); Test `tests/test_gbm.py`.
 
-- [ ] Step 1: failing tests (synthetic — fast, deterministic):
+- [x] Step 1: failing tests (synthetic — fast, deterministic):
 
 ```python
 import numpy as np
@@ -165,7 +165,7 @@ def test_walk_forward_devuelve_bloques(tmp_path):
     assert isinstance(informe["pasa_puerta"], bool)
 ```
 
-- [ ] Step 2: implement `gbm.py`:
+- [x] Step 2: implement `gbm.py`:
 
 ```python
 """Capa GBM ordinal (Frank-Hall) con features point-in-time y puerta walk-forward."""
@@ -368,13 +368,13 @@ def walk_forward(conexion, bloques=None) -> dict:
     return resultado
 ```
 
-- [ ] Step 3: tests pass (synthetic) → commit `feat: ordinal LightGBM with point-in-time features and walk-forward gate`.
+- [x] Step 3: tests pass (synthetic) → commit `feat: ordinal LightGBM with point-in-time features and walk-forward gate`.
 
 ### Task 20: CLI `gbm`, puerta, pool de 3 señales y SHAP
 
 **Files:** Modify `src/mundial/cli.py`, `src/mundial/modelo/prediccion.py`, `src/mundial/modelo/gbm.py` (persistencia del modelo + SHAP); Test `tests/test_gbm.py` (extend).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 def test_shap_top_contribuciones(tmp_path):
@@ -394,7 +394,7 @@ def test_pool_log_lineal():
     assert 0.5 < p["local"] < 0.6
 ```
 
-- [ ] Step 2: implement:
+- [x] Step 2: implement:
   - `gbm.py` additions:
 
 ```python
@@ -469,7 +469,7 @@ def gbm() -> None:
 ```
 
   - `prediccion.predecir`: read `config.gbm_activo`; if `'1'` and model files exist, build the feature row for THIS match (reuse `gbm.construir_features` machinery via a helper `gbm.features_partido(conexion, partido) -> np.ndarray|None` that mirrors the row construction using `resultados_historicos` + `rating_asof` live ratings), get `p_gbm`, and replace the linear blend with `pool_log_lineal([p_modelo, p_mercado, p_gbm], [w_dc, w_mercado, w_gbm])` with weights from `config` (`pool_pesos`, default `0.3/0.6/0.1`); append SHAP top-3 to `explicacion` lines (`f"GBM: {nombre} {valor:+.2f}"`). Fallback transparente: sin modelo o sin features → camino actual.
-- [ ] Step 3: tests pass → live run `uv run mundial gbm` on the real 49k (≈2-5 min) → record the gate verdict in CLAUDE.md. Commit `feat: GBM gate, 3-signal log-linear pool and SHAP explanations`. **M3 done.**
+- [x] Step 3: tests pass → live run `uv run mundial gbm` on the real 49k (≈2-5 min) → record the gate verdict in CLAUDE.md. Commit `feat: GBM gate, 3-signal log-linear pool and SHAP explanations`. **M3 done.**
 
 ---
 
@@ -479,7 +479,7 @@ def gbm() -> None:
 
 **Files:** Create `src/mundial/modelo/calibracion.py`; Modify `src/mundial/cli.py`, `src/mundial/modelo/prediccion.py` (read w from config); Test `tests/test_calibracion.py`.
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 import math
@@ -515,7 +515,7 @@ def test_optimizar_w_shrinkage(tmp_path):
     assert resultado["logloss_geometrico"] <= resultado["logloss_lineal"] + 1e-9 or True
 ```
 
-- [ ] Step 2: implement `calibracion.py`:
+- [x] Step 2: implement `calibracion.py`:
 
 ```python
 """Calibración del peso modelo/mercado por log-loss con shrinkage al prior."""
@@ -583,13 +583,13 @@ def optimizar_w(conexion: sqlite3.Connection) -> dict:
 ```
 
   - CLI `calibrar`: prints the dict and on `--aplicar` writes `config('peso_modelo', str(w_recomendado))`. `prediccion.predecir` reads `config.peso_modelo` (fallback 0.4) when caller doesn't override `peso_modelo` (change default param to `None` → resolve from config).
-- [ ] Step 3: tests pass → commit `feat: blend-weight calibration with shrinkage`.
+- [x] Step 3: tests pass → commit `feat: blend-weight calibration with shrinkage`.
 
 ### Task 22: sondeos selectivos de hándicap asiático (The Odds API)
 
 **Files:** Modify `src/mundial/ingesta/odds_api.py`, `src/mundial/cli.py`; Test `tests/test_odds_api.py` (extend).
 
-- [ ] Step 1: failing tests:
+- [x] Step 1: failing tests:
 
 ```python
 def test_eventos_y_sondeo_ah():
@@ -620,7 +620,7 @@ def test_eventos_y_sondeo_ah():
     assert (537327, "t", "odds-api", "pinnacle", "totals", "over@2.25", 1.85) in filas
 ```
 
-- [ ] Step 2: implement in `odds_api.py`:
+- [x] Step 2: implement in `odds_api.py`:
 
 ```python
     def eventos(self) -> list:
@@ -703,13 +703,13 @@ def sondear(partido: str = typer.Argument(..., help="tla-tla, igual que predecir
 
 (`actualizar_canonico` = `from mundial.ingesta.actualizar import canonico as actualizar_canonico`. La comparación AH usa la curva `ah` guardada en `mercados_json`.)
 
-- [ ] Step 3: tests pass → commit `feat: selective Asian-handicap probes via The Odds API`.
+- [x] Step 3: tests pass → commit `feat: selective Asian-handicap probes via The Odds API`.
 
 ### Task 23: alerta de XI confirmado (FIFA live)
 
 **Files:** Modify `src/mundial/ingesta/fifa.py`, `src/mundial/ingesta/actualizar.py` (persist `id_stage`), `src/mundial/notificaciones/vigilar.py`; Test `tests/test_clientes_fixtures.py`, `tests/test_vigilar.py` (extend).
 
-- [ ] Step 1: `fifa.calendario()` gains `"id_stage": m.get("IdStage")` in the simplified dict; `actualizar` persists it to new table `partidos_fifa(partido_id INTEGER PRIMARY KEY, id_stage TEXT)` (add to DDL — `esquema.crear` is idempotent) filling from `calendario_por_llave`. New client method:
+- [x] Step 1: `fifa.calendario()` gains `"id_stage": m.get("IdStage")` in the simplified dict; `actualizar` persists it to new table `partidos_fifa(partido_id INTEGER PRIMARY KEY, id_stage TEXT)` (add to DDL — `esquema.crear` is idempotent) filling from `calendario_por_llave`. New client method:
 
 ```python
     def alineacion_live(self, id_stage: str, id_match: str) -> dict:
@@ -730,14 +730,14 @@ def sondear(partido: str = typer.Argument(..., help="tla-tla, igual que predecir
 
 (`Status==1`/`FieldStatus==1` = convocado titular según el probe del live endpoint; el implementador debe verificar contra un partido en vivo real el primer día de ejecución y ajustar la pareja de flags si el XI no sale con 11 nombres por lado.)
 
-- [ ] Step 2: `vigilar` gains an XI block (window: 15-100 min before kickoff, state key `"xi"`): fetch `partidos_fifa.id_stage` + `id_fifa`, call `alineacion_live` (try/except), compare against the predicted XI of the latest BSD snapshot (`payload.alineaciones[evento].lineups.{home,away}.players[].name` — load via the latest snapshot file for that event, helper `_xi_predicho(conexion, partido_id)` reading `data/snapshots` newest bsd file). Alert when ≥3 names differ per side or a player with `ai_score ≥ 0.6` is missing: `"🚨 XI confirmado de {equipo}: {n} cambios vs el XI con el que predijimos — revisa la cuota antes del kickoff"`. Failing test: fake FIFA client + snapshot fixture seeded → message contains "XI confirmado"; second run no resend.
-- [ ] Step 3: tests pass → commit `feat: confirmed-XI alert from FIFA live endpoint`.
+- [x] Step 2: `vigilar` gains an XI block (window: 15-100 min before kickoff, state key `"xi"`): fetch `partidos_fifa.id_stage` + `id_fifa`, call `alineacion_live` (try/except), compare against the predicted XI of the latest BSD snapshot (`payload.alineaciones[evento].lineups.{home,away}.players[].name` — load via the latest snapshot file for that event, helper `_xi_predicho(conexion, partido_id)` reading `data/snapshots` newest bsd file). Alert when ≥3 names differ per side or a player with `ai_score ≥ 0.6` is missing: `"🚨 XI confirmado de {equipo}: {n} cambios vs el XI con el que predijimos — revisa la cuota antes del kickoff"`. Failing test: fake FIFA client + snapshot fixture seeded → message contains "XI confirmado"; second run no resend.
+- [x] Step 3: tests pass → commit `feat: confirmed-XI alert from FIFA live endpoint`.
 
 ### Task 24: checkpoint de fase de grupos + cierre
 
 **Files:** Modify `src/mundial/cli.py`; docs.
 
-- [ ] Step 1: command:
+- [x] Step 1: command:
 
 ```python
 @app.command()
@@ -769,9 +769,9 @@ def checkpoint() -> None:
                   "promover o retirar entradas de data/patrones.json")
 ```
 
-- [ ] Step 2: live dry-run `uv run mundial checkpoint` → commit `feat: tournament checkpoint command`.
-- [ ] Step 3: dashboard — add "Patrones y ledger" page to `dashboard/app.py`: table of `data/patrones.json` entries (estado, efecto, n, p_adj), the candidatos table from `data/candidatos.json`, and the ledger summary/last-20 bets (reuse `ledger.resumen`); helper queries in `dashboard/datos.py` with a test each (same pattern as existing `datos.py` tests).
-- [ ] Step 4: close-out — update CLAUDE.md (new commands `gbm/calibrar/sondear/checkpoint/minar/ledger`, gate verdict, pool weights, patterns workflow), README status, mark both plans' checkboxes, `git push`, verify CI snapshot+vigilar runs stay green. **M3+M4 done.**
+- [x] Step 2: live dry-run `uv run mundial checkpoint` → commit `feat: tournament checkpoint command`.
+- [x] Step 3: dashboard — add "Patrones y ledger" page to `dashboard/app.py`: table of `data/patrones.json` entries (estado, efecto, n, p_adj), the candidatos table from `data/candidatos.json`, and the ledger summary/last-20 bets (reuse `ledger.resumen`); helper queries in `dashboard/datos.py` with a test each (same pattern as existing `datos.py` tests).
+- [x] Step 4: close-out — update CLAUDE.md (new commands `gbm/calibrar/sondear/checkpoint/minar/ledger`, gate verdict, pool weights, patterns workflow), README status, mark both plans' checkboxes, `git push`, verify CI snapshot+vigilar runs stay green. **M3+M4 done.**
 
 ## Self-review notes
 

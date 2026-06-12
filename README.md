@@ -13,7 +13,12 @@ All phases live (built June 11, 2026 — tournament day 1):
 - **Engine:** time-weighted Dixon-Coles (analytic gradients) + layered factors (form, altitude, rest, weather, H2H, absences, match importance) + Shin de-vigged market consensus + configurable blend + value flags + confidence with reasons.
 - **CLI:** `predecir`, `hoy`, `jornada`, `actualizar`, `ratings`, `snapshot`, `precision`, `fuentes` — Spanish output.
 - **Dashboard:** 5-page Streamlit app (matches, match detail with score-matrix heatmap and odds evolution, model-vs-market, accuracy, system health).
-- **Accuracy tracking:** Brier + RPS per prediction, model vs market benchmark vs blend.
+- **Accuracy tracking:** Brier + RPS + log-loss per prediction, model vs market benchmark vs blend.
+- **Derived markets & paper trading:** over/under, BTTS, DNB and Asian-handicap priced from one market-coherent matrix (λ-space blend); simulated betting ledger tracking CLV vs the closing line (the real test of edge before risking money).
+- **Pattern mining:** Benjamini-Hochberg–corrected hypothesis testing over 1930-2022 World Cups with reconstructed 90-minute scores; pre-registered patterns (git-validated) fire as pre-match alerts only when the price agrees.
+- **GBM layer (gated):** a LightGBM ordinal model trained walk-forward on 49k internationals — kept out of the blend because it doesn't beat Dixon-Coles without odds features (an honest, documented result), retained for SHAP-based learning.
+
+Setup note: the optional GBM step needs OpenMP — on macOS run `brew install libomp` (Linux ships it). The core prediction pipeline does not require it.
 
 See the full design in [docs/superpowers/specs/](docs/superpowers/specs/2026-06-10-mundial-prediccion-design.md) and the architecture notes in [CLAUDE.md](CLAUDE.md).
 

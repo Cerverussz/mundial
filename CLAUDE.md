@@ -50,6 +50,10 @@ uv run mundial predecir mex-rsa   # predict a match (TLA pair or name substrings
 uv run mundial hoy / jornada 1    # predict today's matches / a group-stage matchday
 uv run mundial ledger      # paper-trading: PnL flat, yield, CLV medio
 uv run mundial minar       # mine WC patterns (BH q=0.10) → data/candidatos.json (no activa)
+uv run mundial gbm         # train+gate the GBM layer (activates only if it beats DC in ALL blocks)
+uv run mundial calibrar [--aplicar]  # tune blend weight w by log-loss with shrinkage
+uv run mundial sondear mex-rsa       # probe real AH/totals via The Odds API (~5 credits)
+uv run mundial checkpoint  # tournament dashboard: accuracy, ledger/CLV, w, GBM, patterns
 uv run mundial precision   # Brier/RPS/log-loss: modelo vs mercado vs blend (needs finished matches)
 uv run mundial fuentes     # source freshness, Odds API credits, DB counts
 uv run streamlit run src/mundial/dashboard/app.py   # 5-page dashboard
@@ -101,4 +105,7 @@ CI: `.github/workflows/snapshot.yml`, dual cron (`0 4-14/2 * * *` + `*/30 0-3,15
 - Ledger: flat 1u (primary) + ¼-Kelly (learning); opens only on SUSTAINED flags in markets with real odds (AH excluded — no free odds); CLV = taken_odds × close_devig_prob − 1; yield needs n huge for significance, CLV is the tournament metric. `liquidar_pendientes` settles in vigilar post-match.
 - Patterns: `data/patrones.json` entries need `registrado_en_commit` to predate the match (git `%cI` check) or they're rejected; alert fires only if filter matches AND best de-vigged price ≤ `umbral_prob_implicita`; pattern bets get `origen=patron:<id>` (separate ledger stream). `minar` writes `data/candidatos.json` (gitignored, regenerated).
 
-**Maintenance loop during the tournament:** after each matchday run `mundial actualizar && mundial ratings`, then `mundial precision` + `mundial ledger` (is CLV>0?). Re-run `mundial minar` after group stage with more 2026 out-of-sample data. Open TODOs: M3 (GBM+SHAP) and M4 (blend-weight calibration, AH probes, confirmed-XI alerts, checkpoint) per `docs/superpowers/plans/2026-06-12-plan-m3-m4-gbm-afinacion.md`.
+- **M3 DONE (2026-06-12):** point-in-time `ratings_asof` (anti-leakage, `entrenar.py`); LightGBM ordinal (Frank-Hall 2 binaries, isotonic, monotone constraints) on 22 t<match features (`gbm.py`); strict all-blocks walk-forward gate + 3-signal log-linear pool + SHAP. **Gate verdict on real 49k: GBM LOSES to Dixon-Coles in 3/4 blocks (RPS Δ~0.002) → NOT activated** (`config.gbm_activo='0'`), exactly as the no-odds-features literature predicts. Infra kept for learning/SHAP. Needs `libomp` on macOS (`brew install libomp`); Ubuntu CI has libgomp1; the `lightgbm` import is lazy so the core pipeline never requires it.
+- **M4 DONE (2026-06-12):** blend-weight calibration by log-loss + shrinkage to w₀=0.4 (`calibracion.py`, `mundial calibrar`); selective AH/totals probes via The Odds API event endpoint (`mundial sondear`, ~5 cr); confirmed-XI alert from FIFA live (`/live/football/...`, **Status==1 = starter, verified against a real lineup**) in vigilar; `mundial checkpoint`; dashboard "Patrones y ledger" page (6 pages now).
+
+**Maintenance loop during the tournament:** after each matchday run `mundial actualizar && mundial ratings`, then `mundial checkpoint` (accuracy, ledger/CLV, w, GBM, patterns in one view). Re-run `mundial minar` after group stage with 2026 out-of-sample; `mundial calibrar --aplicar` once enough finished matches accumulate; `mundial gbm` to re-test the gate as the sample grows. The pipeline is feature-complete per both plans — open future work: promote a pattern to `data/patrones.json` only when it passes its own gate; optional Streamlit Cloud publish.
