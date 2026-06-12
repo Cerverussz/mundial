@@ -76,6 +76,13 @@ def pagina_partido() -> None:
         return
     _tarjeta_prediccion(elegido, pred)
 
+    fila_xg = con.execute(
+        "SELECT xg_local, xg_visitante FROM xg WHERE partido_id=?", (elegido["id"],)).fetchone()
+    if fila_xg:
+        cols_xg = st.columns(2)
+        cols_xg[0].metric(f"xG {elegido['local']}", f"{fila_xg['xg_local']:.2f}")
+        cols_xg[1].metric(f"xG {elegido['visitante']}", f"{fila_xg['xg_visitante']:.2f}")
+
     izquierda, derecha = st.columns(2)
     with izquierda:
         st.subheader("Matriz de marcadores")

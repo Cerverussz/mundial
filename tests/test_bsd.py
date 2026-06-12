@@ -49,3 +49,10 @@ def test_comparacion_cuotas():
     assert datos["home_team"] == "Mexico"
     assert datos["bookmakers_count"] == 16
     assert "1x2" in datos["markets"]
+
+
+def test_estadisticas():
+    crudo = json.loads((FIXTURES / "bsd_stats.json").read_text())
+    cliente = cliente_con_respuestas({"/api/v2/events/8287/stats/": crudo})
+    datos = cliente.estadisticas(8287)
+    assert datos["stats"]["home"]["expected_goals"] == 1.41

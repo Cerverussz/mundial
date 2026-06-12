@@ -57,3 +57,9 @@ class ClienteBsd:
         respuesta = self._http.get(f"/events/{evento_id}/lineups/", params={"full": "true"})
         respuesta.raise_for_status()
         return respuesta.json()
+
+    def estadisticas(self, evento_id: int) -> dict:
+        """Estadísticas post-partido: xG por equipo, shotmap por tiro, xG por minuto."""
+        respuesta = self._http.get(f"/events/{evento_id}/stats/")
+        respuesta.raise_for_status()
+        return respuesta.json()

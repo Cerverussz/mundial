@@ -86,6 +86,26 @@ def test_vigilar_alerta_patron(tmp_path):
     assert apuesta is not None
 
 
+def test_vigilar_guarda_xg(tmp_path):
+    from pathlib import Path
+
+    fixtures = Path(__file__).parent / "fixtures"
+    conexion = preparar_bd(tmp_path)
+    conexion.execute("INSERT INTO eventos_bsd VALUES (11, 8287)")
+    conexion.commit()
+
+    class BsdConStats:
+        def estadisticas(self, evento_id):
+            return json.loads((fixtures / "bsd_stats.json").read_text())
+
+    vigilar.vigilar(conexion, TelegramFalso(), "42", ahora=AHORA,
+                    ruta_estado=tmp_path / "n.json", cliente_bsd=BsdConStats())
+    fila = conexion.execute("SELECT * FROM xg WHERE partido_id=11").fetchone()
+    assert fila["xg_local"] == 1.41
+    assert conexion.execute(
+        "SELECT COUNT(*) c FROM tiros WHERE partido_id=11").fetchone()["c"] == 19
+
+
 def test_vigilar_abre_y_liquida_apuestas(tmp_path):
     conexion = preparar_bd(tmp_path)
     registro = vigilar.vigilar(

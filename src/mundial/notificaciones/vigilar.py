@@ -161,6 +161,33 @@ def vigilar(
         """SELECT id, local, visitante, goles_local, goles_visitante FROM partidos
            WHERE goles_local IS NOT NULL ORDER BY fecha_utc"""
     ).fetchall()
+
+    if cliente_bsd is not None:
+        for partido in terminados:
+            vinculo = conexion.execute(
+                "SELECT evento_id FROM eventos_bsd WHERE partido_id=?", (partido["id"],)
+            ).fetchone()
+            ya = conexion.execute(
+                "SELECT 1 FROM xg WHERE partido_id=?", (partido["id"],)).fetchone()
+            if not vinculo or ya:
+                continue
+            try:
+                stats = cliente_bsd.estadisticas(vinculo["evento_id"])
+                xg_l = (stats.get("stats", {}).get("home") or {}).get("expected_goals")
+                xg_v = (stats.get("stats", {}).get("away") or {}).get("expected_goals")
+                if xg_l is not None:
+                    conexion.execute("INSERT OR REPLACE INTO xg VALUES (?,?,?,?,?)",
+                                     (partido["id"], xg_l, xg_v, "bsd", ahora.isoformat()))
+                    conexion.executemany(
+                        "INSERT OR REPLACE INTO tiros VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        [(partido["id"], i, int(t.get("home") or 0), t.get("min"),
+                          t.get("player_id"), t.get("xg"), t.get("xgot"), t.get("type"),
+                          (t.get("pos") or {}).get("x"), (t.get("pos") or {}).get("y"))
+                         for i, t in enumerate(stats.get("shotmap") or [])])
+                    conexion.commit()
+                    registro.append(f"xG guardado: {partido['local']} vs {partido['visitante']}")
+            except Exception:
+                pass
     for partido in terminados:
         if partido["id"] in estado["post"]:
             continue
