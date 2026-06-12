@@ -20,6 +20,7 @@ from mundial.modelo.dixon_coles import Ajuste
 MAX_GOLES = 10
 PESO_MODELO = 0.4
 UMBRAL_VALOR = 0.05
+UMBRALES_VALOR = {"1x2": 0.05, "over_under_25": 0.04, "btts": 0.04, "draw_no_bet": 0.04}
 HORAS_VALOR_SOSTENIDO = 2.0
 ANFITRIONES = {"Mexico": "Mexico", "United States": "United States", "Canada": "Canada"}
 RESULTADOS = ("local", "empate", "visitante")
@@ -184,6 +185,26 @@ def cargar_exportadas(conexion: sqlite3.Connection, directorio=None) -> int:
     return insertadas
 
 
+def _flags_mercado(conexion, partido_id, mercado_clave, p_propias, ahora):
+    p_mkt, _, _ = mercado.cuotas_consenso_mercado(conexion, partido_id, mercado_clave)
+    if not p_mkt:
+        return []
+    previas, _, _ = mercado.cuotas_consenso_mercado(
+        conexion, partido_id, mercado_clave,
+        hasta=(ahora - timedelta(hours=HORAS_VALOR_SOSTENIDO)).isoformat())
+    flags = []
+    for seleccion, p in p_propias.items():
+        margen = p - p_mkt.get(seleccion, 1.0)
+        if margen > UMBRALES_VALOR[mercado_clave]:
+            sostenida = bool(
+                previas and (p - previas.get(seleccion, 1.0)) > UMBRALES_VALOR[mercado_clave]
+            )
+            flags.append({"mercado": mercado_clave, "seleccion": seleccion,
+                          "resultado": seleccion, "margen": round(margen, 4),
+                          "sostenida": sostenida})
+    return flags
+
+
 def predecir(
     conexion: sqlite3.Connection,
     partido_id: int,
@@ -327,6 +348,18 @@ def predecir(
                     {"mercado": "1x2", "seleccion": k, "resultado": k,
                      "margen": round(margen, 4), "sostenida": sostenida}
                 )
+        valor_flags += _flags_mercado(
+            conexion, partido_id, "over_under_25",
+            {"over@2.5": precios["over_under_25"]["p_over"],
+             "under@2.5": precios["over_under_25"]["p_under"]}, ahora)
+        valor_flags += _flags_mercado(
+            conexion, partido_id, "btts",
+            {"yes": precios["btts"]["p_si"], "no": 1.0 - precios["btts"]["p_si"]}, ahora)
+        dnb_local = mercados.resultado_ah(matriz_final, 0.0)
+        p_dnb_propia = dnb_local["p_gana"] / (dnb_local["p_gana"] + dnb_local["p_pierde"])
+        valor_flags += _flags_mercado(
+            conexion, partido_id, "draw_no_bet",
+            {"HOME": p_dnb_propia, "AWAY": 1.0 - p_dnb_propia}, ahora)
 
     divergencia = max(abs(p_modelo[k] - p_mercado[k]) for k in RESULTADOS) if p_mercado else 0.0
     bajas_info = conexion.execute(

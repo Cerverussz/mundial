@@ -135,9 +135,10 @@ def _imprimir_prediccion(resultado) -> None:
             consola.print(f"  • {linea}")
     for flag in resultado.valor_flags:
         etiqueta = "sostenida" if flag["sostenida"] else "reciente, aún no sostenida"
+        mercado_etq = flag.get("mercado", "1x2")
         consola.print(
             f"[bold magenta]VALOR[/]: el modelo da {flag['margen'] * 100:+.1f} pts más que el "
-            f"mercado a '{flag['resultado']}' ({etiqueta})"
+            f"mercado a '{flag['resultado']}' [{mercado_etq}] ({etiqueta})"
         )
     consola.print()
 

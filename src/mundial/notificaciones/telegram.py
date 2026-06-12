@@ -80,8 +80,10 @@ def _bloque_prediccion(resultado) -> str:
     lineas.append(f"Confianza: {resultado.confianza}")
     for flag in resultado.valor_flags:
         etiqueta = "sostenida" if flag["sostenida"] else "reciente"
+        mercado_etq = flag.get("mercado", "1x2")
         lineas.append(
-            f"💎 Valor: {flag['resultado']} {flag['margen'] * 100:+.1f} pts ({etiqueta})"
+            f"💎 Valor: {flag['resultado']} [{mercado_etq}] "
+            f"{flag['margen'] * 100:+.1f} pts ({etiqueta})"
         )
     return "\n".join(lineas)
 

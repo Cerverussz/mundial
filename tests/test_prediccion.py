@@ -141,6 +141,15 @@ def test_predecir_sin_mercados_2way_usa_fallback(tmp_path):
     assert resultado.mercados["origen_matriz"] == "reescalado_1x2"
 
 
+def test_flags_incluyen_mercados_2way(tmp_path):
+    conexion = preparar_bd_completa(tmp_path)
+    resultado = prediccion.predecir(conexion, 537327)
+    assert all(
+        {"mercado", "seleccion", "margen", "sostenida"} <= set(f)
+        for f in resultado.valor_flags
+    )
+
+
 def test_exportar_e_importar_predicciones(tmp_path):
     conexion = preparar_bd_completa(tmp_path)
     directorio = tmp_path / "exportadas"
