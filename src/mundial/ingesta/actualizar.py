@@ -75,6 +75,8 @@ def sincronizar(
     mensajes: list[str] = []
     n_estadios = estaticos.cargar_estadios(conexion)
     mensajes.append(f"estadios: {n_estadios}")
+    n_conf = estaticos.cargar_confederaciones(conexion)
+    mensajes.append(f"confederaciones: {n_conf}")
 
     if cargar_historico:
         try:
