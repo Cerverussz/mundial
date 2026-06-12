@@ -36,7 +36,7 @@ Apostar con ventaja **empezando 100% simulado** (paper trading con CLV como mét
 
 ## 4. M2 — Minería de patrones pre-registrada (días 3-5)
 
-**Datos:** datahub worldcup (score 90'/ET/penales + etiquetas oficiales de fase) → tabla `resultados_wc`; `data/static/confederaciones.csv`; xG post-partido del BSD → tablas `xg` y `tiros` (loader en `vigilar` post-partido); StatsBomb 2018+2022 para profundidad histórica de xG.
+**Datos:** datahub worldcup (score 90'/ET/penales + etiquetas oficiales de fase) → tabla `resultados_wc`; `data/static/confederaciones.csv`; xG post-partido del BSD → tablas `xg` y `tiros` (loader en `vigilar` post-partido); StatsBomb 2018+2022 queda como ampliación opcional (solo si una familia de hipótesis de la minería necesita xG histórico — las familias iniciales usan marcadores).
 
 **Metodología** (`analisis/mineria.py`): catálogo de familias de hipótesis (goles por fase, dead rubbers, confederaciones, descanso, era) parametrizado → ~100-300 tests; estratificación por era obligatoria (cortes 1992/1994/1995/2018/2020; análogo correcto de 2026 = 1986-1994 por formato de clasificación 67%); Benjamini-Hochberg q=0.10 por familia + IC bootstrap + n mínimo; mercados sobre KO solo con score 90'.
 
