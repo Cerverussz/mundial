@@ -217,6 +217,34 @@ def vigilar() -> None:
 
 
 @app.command()
+def minar(anio_desde: int = typer.Option(1994, help="Inicio de la era a minar")) -> None:
+    """Mina patrones históricos y escribe los candidatos (NO los activa)."""
+    import json as json_lib
+
+    from rich.table import Table
+
+    from mundial.analisis import mineria
+    from mundial.config import RAIZ
+
+    conexion = _conexion_lista()
+    candidatos = mineria.minar(conexion, anio_desde=anio_desde)
+    reportables = [c for c in candidatos if c.reportable]
+    tabla = Table(
+        title=f"Candidatos reportables (BH q=0.10): {len(reportables)}/{len(candidatos)}")
+    for col in ("id", "tasa", "baseline", "n", "p_adj", "IC95"):
+        tabla.add_column(col)
+    for c in sorted(reportables, key=lambda c: c.p_adj):
+        tabla.add_row(c.id, f"{c.tasa():.3f}", f"{c.baseline:.3f}", str(c.n),
+                      f"{c.p_adj:.4f}", f"[{c.ic95[0]:.2f},{c.ic95[1]:.2f}]")
+    consola.print(tabla)
+    ruta = RAIZ / "data" / "candidatos.json"
+    ruta.write_text(json_lib.dumps([c.__dict__ for c in candidatos], indent=1, default=str,
+                                   ensure_ascii=False))
+    consola.print(f"Candidatos completos → {ruta}. Revisión humana antes de promover a "
+                  f"data/patrones.json.")
+
+
+@app.command()
 def ledger() -> None:
     """Resumen del paper trading: PnL, yield y CLV."""
     from mundial.modelo import ledger as modulo
