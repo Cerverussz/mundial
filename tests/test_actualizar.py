@@ -76,6 +76,30 @@ def test_completa_marcador_desde_fifa(tmp_path):
     assert fila["estado"] == "FINISHED"
 
 
+def test_no_marca_terminado_con_marcador_en_vivo(tmp_path):
+    """Bug 2026-06-12: el marcador EN VIVO de FIFA no debe marcar el partido FINISHED."""
+    from datetime import datetime, timezone
+
+    class FifaEnVivo(FifaFalso):
+        def calendario(self):
+            calendario = super().calendario()
+            for c in calendario:
+                if c["id_fifa"] == "400021443":
+                    c["goles_local"], c["goles_visitante"] = 0, 0  # marcador en vivo
+            return calendario
+
+    conexion = preparar_bd(tmp_path)
+    # 30 min después del kickoff (19:00) → el partido sigue en juego
+    ahora = datetime(2026, 6, 11, 19, 30, tzinfo=timezone.utc)
+    actualizar.sincronizar(
+        conexion, cliente_fd=FdFalso(), cliente_fifa=FifaEnVivo(),
+        cargar_historico=False, ahora=ahora,
+    )
+    fila = conexion.execute("SELECT * FROM partidos WHERE id=537327").fetchone()
+    assert fila["estado"] != "FINISHED"  # NO se fabrica un final prematuro
+    assert fila["goles_local"] is None
+
+
 def test_canonico_aplica_mapeo():
     assert actualizar.canonico("Korea Republic") == "South Korea"
     assert actualizar.canonico("Mexico") == "Mexico"

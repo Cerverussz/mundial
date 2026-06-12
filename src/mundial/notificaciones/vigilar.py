@@ -19,8 +19,11 @@ def _leer_estado(ruta: Path) -> dict:
     if ruta.exists():
         estado = json.loads(ruta.read_text(encoding="utf-8"))
         estado.setdefault("xi", [])
+        # post pasó de lista de ids a {id: "marcador notificado"} para detectar correcciones.
+        if isinstance(estado.get("post"), list):
+            estado["post"] = {str(i): None for i in estado["post"]}
         return estado
-    return {"pre": [], "post": [], "xi": []}
+    return {"pre": [], "post": {}, "xi": []}
 
 
 def _xi_predicho(conexion, partido_id: int) -> dict | None:
@@ -255,16 +258,26 @@ def vigilar(
             except Exception:
                 pass
     for partido in terminados:
-        if partido["id"] in estado["post"]:
+        clave = str(partido["id"])
+        marcador = f"{partido['goles_local']}-{partido['goles_visitante']}"
+        notificado = estado["post"].get(clave, "_NUEVO_")
+        if notificado == marcador:
+            continue  # ya enviado con este marcador
+        if notificado is None:
+            # migrado de formato viejo: registramos el marcador sin reenviar
+            estado["post"][clave] = marcador
             continue
-        cliente.enviar(
-            chat_id,
-            _mensaje_resultado(partido, evaluados.get(partido["id"]), informe, resumen_ledger),
-        )
-        estado["post"].append(partido["id"])
+        correccion = notificado != "_NUEVO_"
+        mensaje = _mensaje_resultado(
+            partido, evaluados.get(partido["id"]), informe, resumen_ledger)
+        if correccion:
+            mensaje = (f"⚠️ <b>Corrección</b> (antes informé {notificado} por un marcador "
+                       f"provisional de la fuente)\n\n" + mensaje)
+        cliente.enviar(chat_id, mensaje)
+        estado["post"][clave] = marcador
         registro.append(
-            f"resultado enviado: {partido['local']} {partido['goles_local']}-"
-            f"{partido['goles_visitante']} {partido['visitante']}"
+            f"{'corrección' if correccion else 'resultado'} enviado: {partido['local']} "
+            f"{marcador} {partido['visitante']}"
         )
 
     _guardar_estado(ruta_estado, estado)

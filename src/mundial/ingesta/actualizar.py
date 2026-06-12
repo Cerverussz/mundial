@@ -70,8 +70,12 @@ def sincronizar(
     cliente_fd: object | None = None,
     cliente_fifa: object | None = None,
     cargar_historico: bool = True,
+    ahora: object | None = None,
 ) -> list[str]:
     """Sincroniza la base local. Nunca falla duro: degrada y lo declara."""
+    from datetime import datetime, timezone
+
+    ahora = ahora or datetime.now(timezone.utc)
     mensajes: list[str] = []
     n_estadios = estaticos.cargar_estadios(conexion)
     mensajes.append(f"estadios: {n_estadios}")
@@ -124,9 +128,18 @@ def sincronizar(
         p["id_fifa"] = c["id_fifa"] if c else None
         p["_id_stage"] = c["id_stage"] if c else None
         # football-data (tier gratis, retrasado) puede marcar FINISHED sin marcador;
-        # el calendario FIFA sí lo trae — la cascada aplica por campo, no solo por fuente.
+        # el calendario FIFA sí lo trae. PERO el marcador de FIFA es EN VIVO durante el
+        # partido — solo es final si el partido ya terminó de verdad. Sin esta guarda
+        # marcábamos "FINISHED 0-0" a mitad de partido (bug del 2026-06-12).
+        from datetime import timedelta
+
+        kickoff = datetime.fromisoformat(p["fecha_utc"].replace("Z", "+00:00"))
+        seguro_terminado = (
+            p.get("estado") == "FINISHED"            # football-data lo confirma
+            or ahora > kickoff + timedelta(hours=4)  # pasó tiempo de sobra (prórroga incl.)
+        )
         if (
-            c and p["goles_local"] is None
+            c and p["goles_local"] is None and seguro_terminado
             and c.get("goles_local") is not None and c.get("goles_visitante") is not None
         ):
             p["goles_local"], p["goles_visitante"] = c["goles_local"], c["goles_visitante"]

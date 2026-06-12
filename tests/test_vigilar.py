@@ -74,6 +74,28 @@ PATRON_PRUEBA = {
 }
 
 
+def test_vigilar_corrige_marcador_cambiado(tmp_path):
+    conexion = preparar_bd(tmp_path)
+    estado = tmp_path / "n.json"
+    # primera corrida: el partido 11 figura 0-0 (provisional) y se notifica
+    conexion.execute("UPDATE partidos SET goles_local=0, goles_visitante=0 WHERE id=11")
+    conexion.commit()
+    t1 = TelegramFalso()
+    vigilar.vigilar(conexion, t1, "42", ahora=AHORA, ruta_estado=estado)
+    assert any("0-0" in m for m in t1.mensajes)
+    # el marcador real llega (2-0): segunda corrida debe ENVIAR una corrección
+    conexion.execute("UPDATE partidos SET goles_local=2, goles_visitante=0 WHERE id=11")
+    conexion.commit()
+    t2 = TelegramFalso()
+    vigilar.vigilar(conexion, t2, "42", ahora=AHORA, ruta_estado=estado)
+    correccion = next((m for m in t2.mensajes if "Corrección" in m), None)
+    assert correccion is not None and "2-0" in correccion
+    # tercera corrida: ya con 2-0, no reenvía
+    t3 = TelegramFalso()
+    vigilar.vigilar(conexion, t3, "42", ahora=AHORA, ruta_estado=estado)
+    assert not any("Final" in m for m in t3.mensajes)
+
+
 def test_vigilar_alerta_patron(tmp_path):
     conexion = preparar_bd(tmp_path)
     telegram = TelegramFalso()
@@ -181,7 +203,7 @@ def test_vigilar_envia_pre_y_post_sin_duplicar(tmp_path):
     assert len(telegram.mensajes) == 2
     assert registro == ["sin novedades"]
     guardado = json.loads(estado.read_text())
-    assert guardado["pre"] == [10] and guardado["post"] == [11]
+    assert guardado["pre"] == [10] and guardado["post"] == {"11": "2-0"}
 
 
 def test_vigilar_resultado_sin_pronostico(tmp_path):
